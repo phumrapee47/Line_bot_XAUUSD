@@ -1,0 +1,34 @@
+{
+  "name": "gold-trading-bot",
+  "version": "1.0.0",
+  "description": "Automated Gold (XAUUSD) Trading Bot using ML & LINE Notify",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "gold",
+    "trading",
+    "xauusd",
+    "machine-learning",
+    "line-notify"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.2",
+    "node-cron": "^3.0.2",
+    "dotenv": "^16.3.1",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "python": ">=3.8"
+  }
+}
