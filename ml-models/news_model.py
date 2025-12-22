@@ -13,7 +13,7 @@ import numpy as np
 
 NEWS_RSS_URL = "https://www.fxstreet.com/rss/news"
 
-def fetch_gold_news(limit=10):
+def fetch_gold_news(limit=30):
     """ดึงข่าวที่เกี่ยวกับทองคำ"""
     try:
         feed = feedparser.parse(NEWS_RSS_URL)
