@@ -38,9 +38,9 @@ class PythonBridge {
 
   async getTechnicalAnalysis() {
     try {
-      const scriptPath = path.join(__dirname, '../../..', 'ml-models', 'technical_model.py');
+      const scriptPath = path.join(__dirname, '../../ml-models', 'technical_model.py');
       const result = await this.runPythonScript(scriptPath);
-      logger.info(`Technical analysis completed: prob=${result.probability}`);
+      logger.info(`Technical analysis completed: prob=${result.probability}, price=${result.price}, tp=${result.tp}, sl=${result.sl}`);
       return result;
     } catch (error) {
       logger.error(`Technical analysis failed: ${error.message}`);
@@ -50,7 +50,7 @@ class PythonBridge {
 
   async getNewsAnalysis() {
     try {
-      const scriptPath = path.join(__dirname, '../../..', 'ml-models', 'news_model.py');
+      const scriptPath = path.join(__dirname, '../../ml-models', 'news_model.py');
       const result = await this.runPythonScript(scriptPath);
       logger.info(`News analysis completed: score=${result.score}`);
       return result;
