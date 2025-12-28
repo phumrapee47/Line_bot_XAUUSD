@@ -3,6 +3,31 @@ const router = express.Router();
 const userService = require('../services/userService');
 const logger = require('../utils/logger');
 
+// Get LIFF configuration (public endpoint)
+router.get('/config', (req, res) => {
+  try {
+    const liffId = process.env.LIFF_ID;
+    
+    if (!liffId) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'LIFF_ID not configured' 
+      });
+    }
+
+    res.json({
+      success: true,
+      liffId: liffId
+    });
+  } catch (error) {
+    logger.error(`Error getting LIFF config: ${error.message}`);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // Get user profile with parameters
 router.get('/user/profile', async (req, res) => {
   try {
