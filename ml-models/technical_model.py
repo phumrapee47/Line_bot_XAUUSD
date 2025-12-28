@@ -117,6 +117,8 @@ def get_technical_prediction(line_user_id="default"):
         params_json = load_user_parameters(line_user_id)
         if params_json != DEFAULT_PARAMS:
             params = params_json
+    
+    try:
         # Fetch gold data
         gold = yf.Ticker("GC=F")
         df = gold.history(period=params['history_period'], interval="1d")
