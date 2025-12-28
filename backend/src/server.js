@@ -4,9 +4,17 @@ const config = require('./config/config');
 const tradingSignal = require('./services/tradingSignal');
 const lineNotifier = require('./services/lineNotifier');
 const logger = require('./utils/logger');
+const liffRoutes = require('./routes/liffRoutes');
+const initDatabase = require('./config/initDatabase');
 
 const app = express();
 app.use(express.json());
+
+// Initialize database on startup
+initDatabase().catch(error => {
+  logger.error(`Failed to initialize database: ${error.message}`);
+  process.exit(1);
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -52,6 +60,8 @@ app.post('/webhook', (req, res) => {
   logger.info('LINE Webhook received');
   res.status(200).json({ success: true });
 });
+
+app.use('/api/liff', liffRoutes);
 
 // Start server
 app.listen(config.server.port, async () => {
