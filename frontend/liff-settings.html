@@ -239,9 +239,15 @@
             methods: {
                 async initLiff() {
                     try {
-                        // Get LIFF ID from URL parameter or localStorage
-                        const urlParams = new URLSearchParams(window.location.search);
-                        const liffId = urlParams.get('liffId') || 'YOUR_LIFF_ID';
+                        // Fetch LIFF ID from backend for security
+                        const configResponse = await fetch('/api/liff/config');
+                        const configData = await configResponse.json();
+                        
+                        if (!configData.success) {
+                            throw new Error('Failed to get LIFF configuration');
+                        }
+                        
+                        const liffId = configData.liffId;
                         
                         await liff.init({ liffId });
                         
