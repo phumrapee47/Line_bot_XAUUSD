@@ -149,25 +149,29 @@ def get_technical_prediction(line_user_id="default"):
         df['tr'] = df[['high_low', 'high_close', 'low_close']].max(axis=1)
         df['atr'] = df['tr'].rolling(window=params['atr_period']).mean()
         
-        # Remove NaN
-        df = df.dropna()
+        # Fill NaN values instead of dropping them
+        df['rsi'] = df['rsi'].fillna(50)  # Default to neutral
+        df['sma_short'] = df['sma_short'].bfill().ffill()
+        df['sma_long'] = df['sma_long'].bfill().ffill()
+        df['atr'] = df['atr'].fillna(df['tr'].mean())  # Use mean if NaN
         
-        if df.empty:
+        # Remove only if still completely empty
+        if df.empty or len(df) == 0:
             return {
                 "probability": 0.5,
                 "price": 0,
                 "tp": 0,
                 "sl": 0,
-                "error": "No data after calculations"
+                "error": "No valid data"
             }
         
         # Get latest values
         last = df.iloc[-1]
         price = float(last['Close'])
-        rsi = float(last['rsi'])
-        sma_short = float(last['sma_short'])
-        sma_long = float(last['sma_long'])
-        atr = float(last['atr']) if not pd.isna(last['atr']) else price * 0.01
+        rsi = float(last['rsi']) if pd.notna(last['rsi']) else 50
+        sma_short = float(last['sma_short']) if pd.notna(last['sma_short']) else price
+        sma_long = float(last['sma_long']) if pd.notna(last['sma_long']) else price
+        atr = float(last['atr']) if pd.notna(last['atr']) else price * 0.01
         
         # Signal calculation with user weights
         rsi_signal = (rsi - 50) / 50
