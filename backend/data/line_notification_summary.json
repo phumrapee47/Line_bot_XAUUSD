@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-01-18T14:53:19.079937",
+  "status": "success",
+  "method": "broadcast",
+  "prediction_image": "C:\\Users\\Asus\\Documents\\line_bot_XAUUSD\\backend\\data\\predictions\\xauusd_prediction_20260118.png",
+  "graph_image": "C:\\Users\\Asus\\Documents\\line_bot_XAUUSD\\backend\\data\\graphs\\xauusd_graph_20260118.png",
+  "prediction_url": null,
+  "graph_url": null,
+  "analysis_preview": "เรียนท่านผู้บริหาร,\n\nจากการวิเคราะห์กราฟพยากรณ์ราคาร่วมกับกราฟ timeframe 1-hour สามารถสรุปได้ดังนี้:\n\n**1. สรุปแนวโน้มในอนาคต:**\nแนวโน้มระยะสั้น (สำหรับวันนี้/พรุ่งนี้) คาดว่าจะมีการปรับฐานลดลง (beari...",
+  "line_response": 200
+}
