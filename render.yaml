@@ -1,0 +1,54 @@
+services:
+  - type: web
+    name: xauusd-trading-bot
+    runtime: node
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: LINE_CHANNEL_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: NEWS_RSS_URL
+        value: https://www.fxstreet.com/rss/news
+      - key: TECHNICAL_WEIGHT
+        value: "0.6"
+      - key: NEWS_WEIGHT
+        value: "0.4"
+      - key: BUY_THRESHOLD
+        value: "0.60"
+      - key: SELL_THRESHOLD
+        value: "0.40"
+      - key: CHECK_INTERVAL_MINUTES
+        value: "60"
+      - key: USE_BROADCAST
+        value: "true"
+
+  - type: background_worker
+    name: xauusd-python-scheduler
+    runtime: python-3.11
+    plan: free
+    buildCommand: pip install -r ml-models/requirements.txt
+    startCommand: cd ml-models && python scheduler.py
+    autoDeploy: true
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: LINE_CHANNEL_SECRET
+        sync: false
+      - key: USE_BROADCAST
+        value: "true"
+      - key: TECHNICAL_WEIGHT
+        value: "0.6"
+      - key: NEWS_WEIGHT
+        value: "0.4"
