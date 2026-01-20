@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 # 1. ตั้งค่า API Key จาก environment variable
-api_key = os.getenv('GEMINI_API_KEY', 'AIzaSyCcgZamnH7R8Aj92IS168M1_YbUXs4VkdI')
+api_key = os.getenv('GEMINI_API_KEY')
 if not api_key:
     raise ValueError("GEMINI_API_KEY environment variable is not set!")
 
