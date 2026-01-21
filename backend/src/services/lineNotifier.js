@@ -102,6 +102,13 @@ class LineNotifier {
   }
 
   async sendTradingSignal(signalData) {
+    // Validate that price data is available
+    if (signalData.price === 0 || signalData.price === undefined) {
+      logger.warn('⚠️ Warning: Price data is $0.00 or unavailable - this indicates a Python script error');
+      logger.warn('Check logs for Python execution errors');
+      logger.warn(`Signal data: ${JSON.stringify(signalData)}`);
+    }
+
     const message = `
 🔔 Gold Trading Signal 🔔
 ━━━━━━━━━━━━━━━━━━
@@ -111,9 +118,9 @@ Confidence: ${(signalData.confidence * 100).toFixed(2)}%
 📊 Technical Score: ${(signalData.technicalProb * 100).toFixed(2)}%
 📰 News Score: ${(signalData.newsScore * 100).toFixed(2)}%
 
-💰 Current Price: $${signalData.price.toFixed(2)}
-🎯 Take Profit: $${signalData.tp.toFixed(2)}
-🛡️ Stop Loss: $${signalData.sl.toFixed(2)}
+💰 Current Price: $${(signalData.price || 0).toFixed(2)}
+🎯 Take Profit: $${(signalData.tp || 0).toFixed(2)}
+🛡️ Stop Loss: $${(signalData.sl || 0).toFixed(2)}
 
 ⏰ Time: ${signalData.timestamp}
 ━━━━━━━━━━━━━━━━━━

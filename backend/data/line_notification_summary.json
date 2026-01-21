@@ -1,11 +1,11 @@
 {
-  "timestamp": "2026-01-18T14:53:19.079937",
+  "timestamp": "2026-01-19T17:32:54.952746",
   "status": "success",
   "method": "broadcast",
-  "prediction_image": "C:\\Users\\Asus\\Documents\\line_bot_XAUUSD\\backend\\data\\predictions\\xauusd_prediction_20260118.png",
-  "graph_image": "C:\\Users\\Asus\\Documents\\line_bot_XAUUSD\\backend\\data\\graphs\\xauusd_graph_20260118.png",
+  "prediction_image": "C:\\Users\\Asus\\Documents\\line_bot_XAUUSD\\backend\\data\\predictions\\xauusd_prediction_20260119.png",
+  "graph_image": "C:\\Users\\Asus\\Documents\\line_bot_XAUUSD\\backend\\data\\graphs\\xauusd_graph_20260119.png",
   "prediction_url": null,
   "graph_url": null,
-  "analysis_preview": "เรียนท่านผู้บริหาร,\n\nจากการวิเคราะห์กราฟพยากรณ์ราคาร่วมกับกราฟ timeframe 1-hour สามารถสรุปได้ดังนี้:\n\n**1. สรุปแนวโน้มในอนาคต:**\nแนวโน้มระยะสั้น (สำหรับวันนี้/พรุ่งนี้) คาดว่าจะมีการปรับฐานลดลง (beari...",
+  "analysis_preview": "จากการวิเคราะห์ข้อมูลกราฟทั้งสองรูปภาพ สามารถสรุปแนวโน้มและให้คำแนะนำได้ดังนี้:\n\n**1. สรุปแนวโน้มในอนาคต:**\nในระยะสั้นมีแนวโน้มปรับฐานหรือย่อตัวลงจากระดับสูงสุดล่าสุด โดยกราฟ Prediction ในรูปแรกชี้ให้...",
   "line_response": 200
 }
