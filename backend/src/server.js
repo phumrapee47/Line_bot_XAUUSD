@@ -3,8 +3,10 @@ const cron = require('node-cron');
 const config = require('./config/config');
 const tradingSignal = require('./services/tradingSignal');
 const lineNotifier = require('./services/lineNotifier');
+const priceValidation = require('./services/priceValidation');
 const logger = require('./utils/logger');
 const liffRoutes = require('./routes/liffRoutes');
+const healthCheckRoutes = require('./routes/healthCheck');
 const initDatabase = require('./config/initDatabase');
 
 const app = express();
@@ -16,11 +18,15 @@ initDatabase().catch(error => {
   process.exit(1);
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// Register health check routes
+app.use('/health', healthCheckRoutes);
+
+// Legacy health check endpoint (kept for compatibility)
+app.get('/system-health', (req, res) => {
   res.json({ 
     status: 'running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    priceValidation: priceValidation.getStatus()
   });
 });
 

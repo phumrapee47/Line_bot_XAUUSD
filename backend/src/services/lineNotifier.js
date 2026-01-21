@@ -102,11 +102,30 @@ class LineNotifier {
   }
 
   async sendTradingSignal(signalData) {
-    // Validate that price data is available
-    if (signalData.price === 0 || signalData.price === undefined) {
-      logger.warn('⚠️ Warning: Price data is $0.00 or unavailable - this indicates a Python script error');
-      logger.warn('Check logs for Python execution errors');
-      logger.warn(`Signal data: ${JSON.stringify(signalData)}`);
+    // Safety check: Prevent sending $0.00 signals
+    if (signalData.price === 0 || signalData.price === undefined || signalData.price === null) {
+      logger.error('❌ BLOCKED: Cannot send signal - price is $0.00 or undefined');
+      logger.error(`   Signal: ${signalData.signal}, TP: ${signalData.tp}, SL: ${signalData.sl}`);
+      logger.error(`   This indicates a critical Python script error or network issue`);
+      logger.error(`   Full signal data: ${JSON.stringify(signalData)}`);
+      return false;
+    }
+
+    if (signalData.tp === 0 || signalData.tp === undefined || signalData.tp === null) {
+      logger.error('❌ BLOCKED: Cannot send signal - TP is $0.00 or undefined');
+      logger.error(`   Price: $${signalData.price}, SL: ${signalData.sl}`);
+      return false;
+    }
+
+    if (signalData.sl === 0 || signalData.sl === undefined || signalData.sl === null) {
+      logger.error('❌ BLOCKED: Cannot send signal - SL is $0.00 or undefined');
+      logger.error(`   Price: $${signalData.price}, TP: ${signalData.tp}`);
+      return false;
+    }
+
+    // Validate confidence
+    if (typeof signalData.confidence !== 'number' || signalData.confidence < 0 || signalData.confidence > 1) {
+      logger.warn(`⚠️ WARNING: Invalid confidence value: ${signalData.confidence}`);
     }
 
     const message = `
@@ -118,14 +137,15 @@ Confidence: ${(signalData.confidence * 100).toFixed(2)}%
 📊 Technical Score: ${(signalData.technicalProb * 100).toFixed(2)}%
 📰 News Score: ${(signalData.newsScore * 100).toFixed(2)}%
 
-💰 Current Price: $${(signalData.price || 0).toFixed(2)}
-🎯 Take Profit: $${(signalData.tp || 0).toFixed(2)}
-🛡️ Stop Loss: $${(signalData.sl || 0).toFixed(2)}
+💰 Current Price: $${signalData.price.toFixed(2)}
+🎯 Take Profit: $${signalData.tp.toFixed(2)}
+🛡️ Stop Loss: $${signalData.sl.toFixed(2)}
 
 ⏰ Time: ${signalData.timestamp}
 ━━━━━━━━━━━━━━━━━━
     `.trim();
 
+    logger.info(`✓ Sending valid trading signal - Price: $${signalData.price.toFixed(2)}`);
     return await this.sendMessage(message);
   }
 }

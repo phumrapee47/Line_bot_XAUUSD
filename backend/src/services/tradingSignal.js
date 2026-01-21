@@ -33,16 +33,36 @@ class TradingSignalService {
     try {
       logger.info('Generating trading signal...');
 
-      // Get predictions from both models
-      const [technical, news] = await Promise.all([
-        technicalAnalysis.analyze(),
-        newsAnalysis.analyze()
+      // Get predictions from both models with timeout protection
+      const [technical, news] = await Promise.allSettled([
+        this.withTimeout(technicalAnalysis.analyze(), 35000),
+        this.withTimeout(newsAnalysis.analyze(), 35000)
       ]);
+
+      // Check if technical analysis succeeded
+      if (technical.status === 'rejected') {
+        logger.error(`❌ Technical analysis failed: ${technical.reason}`);
+        return null;
+      }
+
+      // Use technical data even if news fails
+      const technicalData = technical.value;
+      const newsData = news.status === 'fulfilled' ? news.value : { score: 0.5 };
+
+      if (news.status === 'rejected') {
+        logger.warn(`⚠️ News analysis failed, using default score: ${newsData.score}`);
+      }
+
+      // Additional validation before calculating score
+      if (!technicalData || technicalData.price === 0) {
+        logger.error('❌ Technical analysis returned invalid price');
+        return null;
+      }
 
       // Calculate combined score
       const combinedScore = this.calculateCombinedScore(
-        technical.probability,
-        news.score
+        technicalData.probability,
+        newsData.score
       );
 
       // Determine signal
@@ -51,19 +71,33 @@ class TradingSignalService {
       const signalData = {
         signal: signal,
         confidence: combinedScore,
-        technicalProb: technical.probability,
-        newsScore: news.score,
-        price: technical.price,
-        tp: technical.tp,
-        sl: technical.sl,
+        technicalProb: technicalData.probability,
+        newsScore: newsData.score,
+        price: technicalData.price,
+        tp: technicalData.tp,
+        sl: technicalData.sl,
+        source: technicalData.source || 'live',
         timestamp: new Date().toLocaleString('th-TH')
       };
 
+      logger.info(`✓ Signal generated successfully: ${signal} at $${signalData.price.toFixed(2)}`);
       return signalData;
     } catch (error) {
       logger.error(`Error generating signal: ${error.message}`);
       return null;
     }
+  }
+
+  /**
+   * Execute promise with timeout
+   */
+  withTimeout(promise, timeoutMs) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Operation timeout after ${timeoutMs}ms`)), timeoutMs)
+      )
+    ]);
   }
 
   async processSignal() {
