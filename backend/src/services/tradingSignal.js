@@ -36,8 +36,8 @@ class TradingSignalService {
 
       // Get predictions from both models with timeout protection
       const [technical, news] = await Promise.allSettled([
-        this.withTimeout(technicalAnalysis.analyze(), 35000),
-        this.withTimeout(newsAnalysis.analyze(), 35000)
+        this.withTimeout(technicalAnalysis.analyze(), 60000),
+        this.withTimeout(newsAnalysis.analyze(), 60000)
       ]);
 
       // Check if technical analysis succeeded

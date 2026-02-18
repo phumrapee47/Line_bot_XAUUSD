@@ -6,7 +6,7 @@ class TechnicalAnalysisService {
   constructor() {
     this.maxRetries = 3;
     this.retryDelay = 1000; // 1 second
-    this.timeout = 30000; // 30 seconds
+    this.timeout = 60000; // 60 seconds
   }
 
   /**

@@ -105,9 +105,9 @@ const User = sequelize.define('User', {
   timestamps: true,
   underscored: true,
   indexes: [
-    { fields: ['line_user_id'], unique: true },
-    { fields: ['telegram_user_id'], unique: true },
-    { fields: ['email'], unique: true },
+    // { fields: ['line_user_id'], unique: true },
+    // { fields: ['telegram_user_id'], unique: true },
+    // { fields: ['email'], unique: true },
     { fields: ['is_active'] },
     { fields: ['created_at'] }
   ]
