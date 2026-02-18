@@ -127,7 +127,7 @@ print(f"Test RMSE: {rmse_xauusd:.6f}")
 # ============================================================================
 print("\n[10] Downloading recent XAUUSD data (last 90 days)...")
 end_date_recent = datetime.now()
-start_date_recent = end_date_recent - timedelta(days=90)
+start_date_recent = end_date_recent - timedelta(days=120)
 start_date_str = start_date_recent.strftime('%Y-%m-%d')
 end_date_str = end_date_recent.strftime('%Y-%m-%d')
 
