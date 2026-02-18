@@ -9,66 +9,65 @@ const UserNotificationPreferences = sequelize.define('UserNotificationPreference
   },
   userId: {
     type: DataTypes.INTEGER,
-    columnName: 'user_id',
-    unique: true,
+    field: 'user_id',
     allowNull: false,
     comment: 'Link to users table'
   },
   // Channel Preferences
   notifyLine: {
     type: DataTypes.BOOLEAN,
-    columnName: 'notify_line',
+    field: 'notify_line',
     defaultValue: true,
     comment: 'Enable LINE notifications'
   },
   notifyTelegram: {
     type: DataTypes.BOOLEAN,
-    columnName: 'notify_telegram',
+    field: 'notify_telegram',
     defaultValue: true,
     comment: 'Enable Telegram notifications'
   },
   notifyEmail: {
     type: DataTypes.BOOLEAN,
-    columnName: 'notify_email',
+    field: 'notify_email',
     defaultValue: false,
     comment: 'Enable Email notifications'
   },
   notifySms: {
     type: DataTypes.BOOLEAN,
-    columnName: 'notify_sms',
+    field: 'notify_sms',
     defaultValue: false,
     comment: 'Enable SMS notifications'
   },
   // Signal Types
   sendBuySignals: {
     type: DataTypes.BOOLEAN,
-    columnName: 'send_buy_signals',
+    field: 'send_buy_signals',
     defaultValue: true
   },
   sendSellSignals: {
     type: DataTypes.BOOLEAN,
-    columnName: 'send_sell_signals',
+    field: 'send_sell_signals',
     defaultValue: true
   },
   sendHoldSignals: {
     type: DataTypes.BOOLEAN,
-    columnName: 'send_hold_signals',
+    field: 'send_hold_signals',
     defaultValue: false
   },
   // Quiet Hours
   quietHoursEnabled: {
     type: DataTypes.BOOLEAN,
-    columnName: 'quiet_hours_enabled',
+    field: 'quiet_hours_enabled',
     defaultValue: false
   },
   quietHoursStart: {
     type: DataTypes.STRING(5),
-    columnName: 'quiet_hours_start',
+    field: 'quiet_hours_start',
     comment: 'HH:MM format'
   },
   quietHoursEnd: {
     type: DataTypes.STRING(5),
-    columnName: 'quiet_hours_end',
+    field: 'quiet_hours_end',
     comment: 'HH:MM format'
   },
   timezone: {
@@ -78,30 +77,30 @@ const UserNotificationPreferences = sequelize.define('UserNotificationPreference
   // Thresholds
   minConfidenceThreshold: {
     type: DataTypes.DECIMAL(3, 2),
-    columnName: 'min_confidence_threshold',
+    field: 'min_confidence_threshold',
     defaultValue: 0.60
   },
   // Frequency
   maxAlertsPerDay: {
     type: DataTypes.INTEGER,
-    columnName: 'max_alerts_per_day',
+    field: 'max_alerts_per_day',
     defaultValue: 10
   },
   alertFrequency: {
     type: DataTypes.STRING(50),
-    columnName: 'alert_frequency',
+    field: 'alert_frequency',
     defaultValue: 'all',
     comment: 'all, hourly, daily, weekly'
   },
   // Timestamps
   createdAt: {
     type: DataTypes.DATE,
-    columnName: 'created_at',
+    field: 'created_at',
     defaultValue: DataTypes.NOW
   },
   updatedAt: {
     type: DataTypes.DATE,
-    columnName: 'updated_at',
+    field: 'updated_at',
     defaultValue: DataTypes.NOW,
     onUpdate: DataTypes.NOW
   }
@@ -109,9 +108,9 @@ const UserNotificationPreferences = sequelize.define('UserNotificationPreference
   tableName: 'user_notification_preferences',
   timestamps: true,
   underscored: true,
-    // indexes: [
-    //   // { fields: ['user_id'], unique: true } - Redundant with column definition
-    // ]
+  indexes: [
+    { fields: ['user_id'], unique: true }
+  ]
 });
 
 module.exports = UserNotificationPreferences;
