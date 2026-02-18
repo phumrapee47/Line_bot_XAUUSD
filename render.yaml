@@ -1,24 +1,91 @@
 services:
+  # PostgreSQL Database
+  - type: pserv
+    name: trading-bot-db
+    runtime: postgres15
+    plan: free
+    ipAllowList: []
+    postgreSQL:
+      version: 15
+      initialDatabase: trading_bot
+      initialUser: postgres
+      initialPassword: ${POSTGRES_PASSWORD}
+
+  # Frontend LIFF App (Node.js Static Server)
   - type: web
-    name: xauusd-trading-bot
+    name: xauusd-trading-bot-frontend
     runtime: node
     plan: free
-    buildCommand: cd backend && npm install
-    startCommand: cd backend && npm start
+    buildCommand: cd frontend && npm install
+    startCommand: cd frontend && npm run serve
     autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
+        value: "3001"
+
+  # Backend Node.js API Service
+  - type: web
+    name: xauusd-trading-bot-backend
+    runtime: node
+    plan: free
+    buildCommand: cd backend && npm install && node seeds/seedTradingPairs.js
+    startCommand: cd backend && npm start
+    autoDeploy: true
+    depends_on:
+      - trading-bot-db
+    envVars:
+      # Database
+      - key: DATABASE_URL
+        fromService:
+          name: trading-bot-db
+          type: pserv
+          property: connectionString
+      - key: DB_HOST
+        fromService:
+          name: trading-bot-db
+          type: pserv
+          property: host
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        value: trading_bot
+      - key: DB_USER
+        value: postgres
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      
+      # Server
+      - key: NODE_ENV
+        value: production
+      - key: PORT
         value: 3000
+      - key: FRONTEND_URL
+        fromService:
+          name: xauusd-trading-bot-frontend
+          type: web
+          property: renderURL
+      
+      # Telegram
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_USER_ID
+        sync: false
+      - key: TELEGRAM_ENABLED
+        value: "true"
+      
+      # LINE
       - key: LINE_CHANNEL_ACCESS_TOKEN
         sync: false
       - key: LINE_CHANNEL_SECRET
         sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: NEWS_RSS_URL
-        value: https://www.fxstreet.com/rss/news
+      - key: USE_BROADCAST
+        value: "true"
+      
+      # Trading
       - key: TECHNICAL_WEIGHT
         value: "0.6"
       - key: NEWS_WEIGHT
@@ -29,9 +96,8 @@ services:
         value: "0.40"
       - key: CHECK_INTERVAL_MINUTES
         value: "60"
-      - key: USE_BROADCAST
-        value: "true"
 
+  # Python ML Model Scheduler (Background Worker)
   - type: background_worker
     name: xauusd-python-scheduler
     runtime: python-3.11
@@ -40,6 +106,18 @@ services:
     startCommand: cd ml-models && python scheduler.py
     autoDeploy: true
     envVars:
+      # Database (for logging signals)
+      - key: DB_HOST
+        fromService:
+          name: trading-bot-db
+          type: pserv
+          property: host
+      - key: DB_NAME
+        value: trading_bot
+      - key: POSTGRES_PASSWORD
+        sync: false
+      
+      # API Keys
       - key: GEMINI_API_KEY
         sync: false
       - key: LINE_CHANNEL_ACCESS_TOKEN

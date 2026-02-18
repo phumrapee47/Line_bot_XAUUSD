@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚙️ ตั้งค่า Trading Bot</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d.line-scdn.net/liff/d/v2/sdk.js"></script>
+    <style>
+        [v-cloak] { display: none; }
+        input[type="range"] { accent-color: #10b981; }
+        .tab-active { @apply border-b-2 border-green-500 text-green-600; }
+    </style>
+</head>
+<body class="bg-gray-50" v-cloak>
+    <div id="app" class="min-h-screen">
+        <!-- Loading State -->
+        <div v-if="loading" class="flex items-center justify-center h-screen">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+                <p class="text-gray-600">กำลังโหลด...</p>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div v-else class="max-w-4xl mx-auto p-4">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg shadow-lg p-6 mb-6">
+                <h1 class="text-3xl font-bold">⚙️ ตั้งค่า Trading Bot</h1>
+                <p class="text-green-100 mt-2">จัดการการตั้งค่าการแจ้งเตือน สัญญาณ และตัวบ่งชี้</p>
+            </div>
+
+            <!-- Alert Messages -->
+            <div v-if="message.text" :class="`mb-4 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-100 text-green-700 border border-green-400' : 'bg-red-100 text-red-700 border border-red-400'}`">
+                {{ message.text }}
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-lg">
+                <button 
+                    v-for="tab in tabs" 
+                    :key="tab"
+                    @click="activeTab = tab"
+                    :class="`flex-1 py-3 px-4 font-semibold transition ${activeTab === tab ? 'tab-active' : 'text-gray-500 hover:text-gray-700'}`"
+                >
+                    <span v-if="tab === 'pairs'">📊 คู่เงิน</span>
+                    <span v-else-if="tab === 'notifications'">🔔 การแจ้งเตือน</span>
+                    <span v-else-if="tab === 'parameters'">⚙️ พารามิเตอร์</span>
+                </button>
+            </div>
+
+            <!-- Tab 1: Trading Pairs Selection -->
+            <div v-if="activeTab === 'pairs'" class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">📊 เลือกคู่เงินที่ต้องการติดตาม</h2>
+                
+                <div v-if="availablePairs.length === 0" class="text-center py-8 text-gray-500">
+                    <p>ไม่มีคู่เงินที่พร้อมใช้</p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div v-for="pair in availablePairs" :key="pair.id" class="border border-gray-300 rounded-lg p-4 hover:shadow-md transition">
+                        <div class="flex items-start gap-3">
+                            <input 
+                                type="checkbox" 
+                                :id="`pair-${pair.id}`"
+                                v-model="selectedPairs"
+                                :value="pair.id"
+                                class="mt-1 w-5 h-5 accent-green-500"
+                            >
+                            <label :for="`pair-${pair.id}`" class="flex-1 cursor-pointer">
+                                <div class="font-semibold text-gray-800">{{ pair.pairCode }}</div>
+                                <div class="text-sm text-gray-600">{{ pair.pairName }}</div>
+                                <div class="text-xs text-gray-500 mt-1">
+                                    <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">{{ pair.assetType }}</span>
+                                </div>
+                            </label>
+                            <div v-if="isSelected(pair.id)" class="text-green-500 font-bold">✓</div>
+                        </div>
+
+                        <!-- Per-pair settings (show when pair is selected) -->
+                        <div v-if="isSelected(pair.id)" class="mt-4 pt-4 border-t border-gray-200 space-y-3">
+                            <div>
+                                <label class="text-sm font-semibold text-gray-700">Buy Threshold: <span class="text-green-600">{{ getPairSettings(pair.id).buyThreshold }}</span></label>
+                                <input 
+                                    v-model.number="getPairSettings(pair.id).buyThreshold" 
+                                    type="range" 
+                                    min="0" 
+                                    max="100" 
+                                    step="1"
+                                    class="w-full"
+                                >
+                                <p class="text-xs text-gray-500">ระหว่าง 0-100 (เปอร์เซ็นต์)</p>
+                            </div>
+                            
+                            <div>
+                                <label class="text-sm font-semibold text-gray-700">Sell Threshold: <span class="text-red-600">{{ getPairSettings(pair.id).sellThreshold }}</span></label>
+                                <input 
+                                    v-model.number="getPairSettings(pair.id).sellThreshold" 
+                                    type="range" 
+                                    min="0" 
+                                    max="100" 
+                                    step="1"
+                                    class="w-full"
+                                >
+                                <p class="text-xs text-gray-500">ระหว่าง 0-100 (เปอร์เซ็นต์)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                    <p class="text-sm text-blue-700">
+                        <strong>✓ เลือกแล้ว:</strong> 
+                        <span class="font-bold">{{ selectedPairs.length }} / {{ availablePairs.length }}</span> คู่เงิน
+                    </p>
+                </div>
+            </div>
+
+            <!-- Tab 2: Notification Preferences -->
+            <div v-if="activeTab === 'notifications'" class="bg-white rounded-lg shadow-md p-6 mb-6 space-y-6">
+                <h2 class="text-xl font-bold text-gray-800">🔔 ตั้งค่าการแจ้งเตือน</h2>
+
+                <!-- Notification Channels -->
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-3">📲 ช่องทางการแจ้งเตือน</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3">
+                            <input 
+                                type="checkbox" 
+                                id="line-enabled"
+                                v-model="notifications.lineEnabled"
+                                class="w-5 h-5 accent-green-500"
+                            >
+                            <label for="line-enabled" class="flex-1 cursor-pointer font-semibold text-gray-700">
+                                📱 LINE Message
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center gap-3">
+                            <input 
+                                type="checkbox" 
+                                id="telegram-enabled"
+                                v-model="notifications.telegramEnabled"
+                                class="w-5 h-5 accent-green-500"
+                            >
+                            <label for="telegram-enabled" class="flex-1 cursor-pointer font-semibold text-gray-700">
+                                🔵 Telegram Message
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Signal Types -->
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-3">📈 ประเภทสัญญาณ</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3">
+                            <input 
+                                type="checkbox" 
+                                id="buy-signals"
+                                v-model="notifications.buySignals"
+                                class="w-5 h-5 accent-green-500"
+                            >
+                            <label for="buy-signals" class="flex-1 cursor-pointer font-semibold text-gray-700">
+                                🟢 BUY Signals
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center gap-3">
+                            <input 
+                                type="checkbox" 
+                                id="sell-signals"
+                                v-model="notifications.sellSignals"
+                                class="w-5 h-5 accent-green-500"
+                            >
+                            <label for="sell-signals" class="flex-1 cursor-pointer font-semibold text-gray-700">
+                                🔴 SELL Signals
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quiet Hours -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700 mb-3">🔕 เวลาปิดการแจ้งเตือน (Quiet Hours)</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3">
+                            <input 
+                                type="checkbox" 
+                                id="quiet-hours-enabled"
+                                v-model="notifications.quietHoursEnabled"
+                                class="w-5 h-5 accent-green-500"
+                            >
+                            <label for="quiet-hours-enabled" class="cursor-pointer font-semibold text-gray-700">
+                                เปิดใช้งาน Quiet Hours
+                            </label>
+                        </div>
+
+                        <div v-if="notifications.quietHoursEnabled" class="ml-8 space-y-3">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">เพิ่มเข้า (Start Time)</label>
+                                <input 
+                                    v-model="notifications.quietHourStart" 
+                                    type="time"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                >
+                            </div>
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">เพิ่มออก (End Time)</label>
+                                <input 
+                                    v-model="notifications.quietHourEnd" 
+                                    type="time"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                >
+                            </div>
+                            <p class="text-xs text-gray-600">ในช่วงเวลานี้ จะไม่ได้รับการแจ้งเตือน</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notification Frequency -->
+                <div>
+                    <h3 class="font-semibold text-gray-700 mb-3">⏱️ ความถี่การแจ้งเตือน</h3>
+                    <select v-model="notifications.frequency" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <option value="instant">🔴 ทันที (Instant)</option>
+                        <option value="hourly">🟡 รายชั่วโมง (Hourly)</option>
+                        <option value="daily">🟢 รายวัน (Daily)</option>
+                    </select>
+                    <p class="text-xs text-gray-600 mt-2">ต้องการได้รับการแจ้งเตือนบ่อยแค่ไหน</p>
+                </div>
+            </div>
+
+            <!-- Tab 3: Technical Parameters -->
+            <div v-if="activeTab === 'parameters'" class="bg-white rounded-lg shadow-md p-6 space-y-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">⚙️ ตั้งค่าตัวบ่งชี้ทางเทคนิค</h2>
+                
+                <!-- RSI Period -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        RSI Period: <span class="text-green-600">{{ params.rsiPeriod }}</span> วัน
+                    </label>
+                    <input 
+                        v-model.number="params.rsiPeriod" 
+                        type="range" 
+                        min="5" 
+                        max="30" 
+                        class="w-full"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">ระหว่าง 5-30 (ค่าต่ำ = ไว ต่อการเปลี่ยนแปลง)</p>
+                </div>
+
+                <!-- SMA Short -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        SMA ระยะสั้น: <span class="text-green-600">{{ params.smaShort }}</span> วัน
+                    </label>
+                    <input 
+                        v-model.number="params.smaShort" 
+                        type="range" 
+                        min="5" 
+                        max="50" 
+                        class="w-full"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">ระหว่าง 5-50 วัน</p>
+                </div>
+
+                <!-- SMA Long -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        SMA ระยะยาว: <span class="text-green-600">{{ params.smaLong }}</span> วัน
+                    </label>
+                    <input 
+                        v-model.number="params.smaLong" 
+                        type="range" 
+                        min="20" 
+                        max="200" 
+                        class="w-full"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">ระหว่าง 20-200 วัน</p>
+                </div>
+
+                <!-- ATR Period -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        ATR Period: <span class="text-green-600">{{ params.atrPeriod }}</span> วัน
+                    </label>
+                    <input 
+                        v-model.number="params.atrPeriod" 
+                        type="range" 
+                        min="3" 
+                        max="20" 
+                        class="w-full"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">ระหว่าง 3-20 วัน</p>
+                </div>
+
+                <!-- RSI Weight -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        น้ำหนัก RSI: <span class="text-green-600">{{ (params.rsiWeight * 100).toFixed(0) }}%</span>
+                    </label>
+                    <input 
+                        v-model.number="params.rsiWeight" 
+                        type="range" 
+                        min="0" 
+                        max="1" 
+                        step="0.05" 
+                        class="w-full"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">อิทธิพลของ RSI ต่อการตัดสินใจ</p>
+                </div>
+
+                <!-- SMA Weight -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        น้ำหนัก SMA: <span class="text-green-600">{{ (params.smaWeight * 100).toFixed(0) }}%</span>
+                    </label>
+                    <input 
+                        v-model.number="params.smaWeight" 
+                        type="range" 
+                        min="0" 
+                        max="1" 
+                        step="0.05" 
+                        class="w-full"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">อิทธิพลของ SMA ต่อการตัดสินใจ</p>
+                </div>
+
+                <!-- TP Multiplier -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        TP Multiplier: <span class="text-green-600">{{ params.tpMultiplier.toFixed(1) }}x ATR</span>
+                    </label>
+                    <input 
+                        v-model.number="params.tpMultiplier" 
+                        type="range" 
+                        min="0.5" 
+                        max="5" 
+                        step="0.1" 
+                        class="w-full"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">ระยะ Take Profit (0.5-5.0x ATR)</p>
+                </div>
+
+                <!-- SL Multiplier -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        SL Multiplier: <span class="text-green-600">{{ params.slMultiplier.toFixed(1) }}x ATR</span>
+                    </label>
+                    <input 
+                        v-model.number="params.slMultiplier" 
+                        type="range" 
+                        min="0.3" 
+                        max="3" 
+                        step="0.1" 
+                        class="w-full"
+                    >
+                    <p class="text-xs text-gray-500 mt-1">ระยะ Stop Loss (0.3-3.0x ATR)</p>
+                </div>
+
+                <!-- Info Box -->
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                    <p class="text-sm text-blue-700">
+                        <strong>📊 Risk/Reward Ratio:</strong> 
+                        <span class="font-bold">1 : {{ (params.tpMultiplier / params.slMultiplier).toFixed(2) }}</span>
+                    </p>
+                    <p class="text-xs text-blue-600 mt-2">ยิ่งสูง = หวังกำไรมากขึ้น, ยิ่งต่ำ = เสี่ยงมากขึ้น</p>
+                </div>
+
+                <!-- Tips -->
+                <div class="mt-6 bg-gray-100 rounded-lg p-4">
+                    <h3 class="font-semibold text-gray-700 mb-2">💡 เคล็ดลับ</h3>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>✓ ค่า Period ต่ำ = ระบบไว (Aggressive Trading)</li>
+                        <li>✓ ค่า Period สูง = ระบบช้า (Conservative Trading)</li>
+                        <li>✓ TP/SL ที่ใหญ่ = รอสัญญาณที่ชัดเจน</li>
+                        <li>✓ ลองปรับเนื้อย ๆ แล้วทดสอบกับข้อมูลสด</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-4 mt-6 mb-8">
+                <button 
+                    @click="saveSettings"
+                    :disabled="saving"
+                    class="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition"
+                >
+                    <span v-if="!saving">💾 บันทึกทั้งหมด</span>
+                    <span v-else>กำลังบันทึก...</span>
+                </button>
+                
+                <button 
+                    @click="resetToDefault"
+                    :disabled="saving"
+                    class="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition"
+                >
+                    🔄 รีเซ็ต
+                </button>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center text-xs text-gray-500">
+                <p>User ID: {{ userId }}</p>
+                <p class="mt-2">Backend: {{ backendUrl }}</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    activeTab: 'pairs',
+                    tabs: ['pairs', 'notifications', 'parameters'],
+                    userId: null,
+                    backendUrl: process.env.VUE_APP_API_URL || 'https://api.example.com',
+                    
+                    // Trading Pairs
+                    availablePairs: [],
+                    selectedPairs: [],
+                    pairSettings: {}, // { pairId: { buyThreshold, sellThreshold } }
+
+                    // Notifications
+                    notifications: {
+                        lineEnabled: true,
+                        telegramEnabled: true,
+                        buySignals: true,
+                        sellSignals: true,
+                        quietHoursEnabled: false,
+                        quietHourStart: '22:00',
+                        quietHourEnd: '06:00',
+                        frequency: 'instant'
+                    },
+
+                    // Technical Parameters
+                    params: {
+                        rsiPeriod: 14,
+                        smaShort: 20,
+                        smaLong: 50,
+                        atrPeriod: 7,
+                        rsiWeight: 0.3,
+                        smaWeight: 0.2,
+                        tpMultiplier: 2.0,
+                        slMultiplier: 1.0
+                    },
+
+                    // UI States
+                    loading: true,
+                    saving: false,
+                    message: { text: '', type: '' }
+                };
+            },
+            
+            mounted() {
+                this.initLiff();
+            },
+
+            methods: {
+                getBackendUrl() {
+                    // Support both production and development
+                    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                        return 'http://localhost:3000';
+                    }
+                    // In production, extract backend URL from environment or parent domain
+                    return process.env.VUE_APP_API_URL || `https://${window.location.hostname}`;
+                },
+
+                async initLiff() {
+                    try {
+                        const configUrl = `${this.getBackendUrl()}/api/liff/config`;
+                        const configResponse = await fetch(configUrl);
+                        const configData = await configResponse.json();
+                        
+                        if (!configData.success) {
+                            throw new Error('Failed to get LIFF configuration');
+                        }
+                        
+                        const liffId = configData.liffId;
+                        await liff.init({ liffId });
+                        
+                        if (!liff.isLoggedIn()) {
+                            liff.login();
+                            return;
+                        }
+
+                        const profile = await liff.getProfile();
+                        this.userId = profile.userId;
+                        
+                        await this.loadAllSettings();
+                    } catch (error) {
+                        console.error('Error:', error);
+                        this.showMessage(`Error initializing LIFF: ${error.message}`, 'error');
+                        this.loading = false;
+                    }
+                },
+
+                async loadAllSettings() {
+                    try {
+                        // Load available trading pairs
+                        const pairsResponse = await fetch(`${this.getBackendUrl()}/api/trading-pairs`);
+                        const pairsData = await pairsResponse.json();
+                        if (pairsData.success) {
+                            this.availablePairs = pairsData.data;
+                        }
+
+                        // Load user's selected pairs and settings
+                        const userResponse = await fetch(`${this.getBackendUrl()}/api/users/${this.userId}`);
+                        const userData = await userResponse.json();
+                        if (userData.success) {
+                            const user = userData.data;
+                            
+                            // Load trading pairs for this user
+                            if (user.userTradingPairs) {
+                                this.selectedPairs = user.userTradingPairs.map(p => p.tradingPairId);
+                                user.userTradingPairs.forEach(pair => {
+                                    this.pairSettings[pair.tradingPairId] = {
+                                        buyThreshold: pair.buyThreshold || 50,
+                                        sellThreshold: pair.sellThreshold || 50
+                                    };
+                                });
+                            }
+
+                            // Load notification preferences
+                            if (user.userNotificationPreferences) {
+                                const prefs = user.userNotificationPreferences;
+                                this.notifications = {
+                                    lineEnabled: prefs.lineEnabled !== false,
+                                    telegramEnabled: prefs.telegramEnabled !== false,
+                                    buySignals: prefs.buySignalsEnabled !== false,
+                                    sellSignals: prefs.sellSignalsEnabled !== false,
+                                    quietHoursEnabled: prefs.quietHoursEnabled || false,
+                                    quietHourStart: prefs.quietHourStart || '22:00',
+                                    quietHourEnd: prefs.quietHourEnd || '06:00',
+                                    frequency: prefs.frequency || 'instant'
+                                };
+                            }
+
+                            // Load trading parameters
+                            if (user.userTradingParameters) {
+                                const params = user.userTradingParameters;
+                                this.params = {
+                                    rsiPeriod: params.rsiPeriod || 14,
+                                    smaShort: params.smaShort || 20,
+                                    smaLong: params.smaLong || 50,
+                                    atrPeriod: params.atrPeriod || 7,
+                                    rsiWeight: params.rsiWeight || 0.3,
+                                    smaWeight: params.smaWeight || 0.2,
+                                    tpMultiplier: params.tpMultiplier || 2.0,
+                                    slMultiplier: params.slMultiplier || 1.0
+                                };
+                            }
+                        }
+                    } catch (error) {
+                        this.showMessage(`ไม่สามารถโหลดการตั้งค่า: ${error.message}`, 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                isSelected(pairId) {
+                    return this.selectedPairs.includes(pairId);
+                },
+
+                getPairSettings(pairId) {
+                    if (!this.pairSettings[pairId]) {
+                        this.pairSettings[pairId] = {
+                            buyThreshold: 50,
+                            sellThreshold: 50
+                        };
+                    }
+                    return this.pairSettings[pairId];
+                },
+
+                async saveSettings() {
+                    this.saving = true;
+                    try {
+                        // Prepare pair settings data
+                        const pairsData = this.selectedPairs.map(pairId => ({
+                            tradingPairId: pairId,
+                            ...this.pairSettings[pairId]
+                        }));
+
+                        // Save all settings in one request
+                        const response = await fetch(`${this.getBackendUrl()}/api/users/${this.userId}/settings`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                tradingPairs: pairsData,
+                                notificationPreferences: this.notifications,
+                                tradingParameters: this.params
+                            })
+                        });
+
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            this.showMessage('✓ บันทึกการตั้งค่าเรียบร้อย!', 'success');
+                        } else {
+                            this.showMessage(`เกิดข้อผิดพลาด: ${data.error}`, 'error');
+                        }
+                    } catch (error) {
+                        this.showMessage(`ไม่สามารถบันทึก: ${error.message}`, 'error');
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+
+                async resetToDefault() {
+                    if (!confirm('แน่ใจว่าต้องการรีเซ็ตการตั้งค่าทั้งหมด?')) return;
+                    
+                    this.saving = true;
+                    try {
+                        const response = await fetch(`${this.getBackendUrl()}/api/users/${this.userId}/settings/reset`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            // Reload all settings
+                            await this.loadAllSettings();
+                            this.showMessage('✓ รีเซ็ตการตั้งค่าเรียบร้อย!', 'success');
+                        }
+                    } catch (error) {
+                        this.showMessage(`ไม่สามารถรีเซ็ต: ${error.message}`, 'error');
+                    } finally {
+                        this.saving = false;
+                    }
+                },
+
+                showMessage(text, type) {
+                    this.message = { text, type };
+                    setTimeout(() => {
+                        this.message = { text: '', type: '' };
+                    }, 4000);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

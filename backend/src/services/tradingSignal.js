@@ -2,6 +2,7 @@ const config = require('../config/config');
 const technicalAnalysis = require('./technicalAnalysis');
 const newsAnalysis = require('./newsAnalysis');
 const lineNotifier = require('./lineNotifier');
+const telegramNotifier = require('./telegramNotifier');
 const logger = require('../utils/logger');
 
 class TradingSignalService {
@@ -117,9 +118,11 @@ class TradingSignalService {
     if (currentSignal !== '⚪ HOLD' && currentSignal !== this.lastSignal) {
       logger.info(`New signal detected: ${currentSignal}`);
       
-      const success = await lineNotifier.sendTradingSignal(signalData);
+      // Send to both LINE and Telegram
+      const lineSuccess = await lineNotifier.sendTradingSignal(signalData);
+      const telegramSuccess = await telegramNotifier.sendTradingSignal(signalData);
       
-      if (success) {
+      if (lineSuccess || telegramSuccess) {
         this.lastSignal = currentSignal;
         this.lastSignalTime = new Date();
       }

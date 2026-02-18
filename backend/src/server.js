@@ -3,19 +3,33 @@ const cron = require('node-cron');
 const config = require('./config/config');
 const tradingSignal = require('./services/tradingSignal');
 const lineNotifier = require('./services/lineNotifier');
+const telegramNotifier = require('./services/telegramNotifier');
 const priceValidation = require('./services/priceValidation');
 const logger = require('./utils/logger');
-const liffRoutes = require('./routes/liffRoutes');
+// const liffRoutes = require('./routes/liffRoutes');  // Disabled - requires database
+// const telegramRoutes = require('./routes/telegramRoutes');  // Disabled - requires database
 const healthCheckRoutes = require('./routes/healthCheck');
 const initDatabase = require('./config/initDatabase');
+const userSettingsRoutes = require('./routes/userSettingsRoutes');
 
 const app = express();
 app.use(express.json());
 
-// Initialize database on startup
+// CORS Configuration for frontend access
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
+// Initialize database on startup (non-blocking - app continues without DB if it fails)
 initDatabase().catch(error => {
-  logger.error(`Failed to initialize database: ${error.message}`);
-  process.exit(1);
+  logger.warn(`Database initialization issue: ${error.message}`);
+  // Continue running - Telegram and LINE will work without database
 });
 
 // Register health check routes
@@ -53,6 +67,10 @@ app.get('/api/status', (req, res) => {
   res.json({
     lastSignal: tradingSignal.lastSignal,
     lastSignalTime: tradingSignal.lastSignalTime,
+    notifiers: {
+      line: lineNotifier.getStatus ? lineNotifier.getStatus() : {},
+      telegram: telegramNotifier.getStatus()
+    },
     config: {
       checkInterval: config.scheduler.checkInterval,
       buyThreshold: config.trading.buyThreshold,
@@ -67,15 +85,19 @@ app.post('/webhook', (req, res) => {
   res.status(200).json({ success: true });
 });
 
+// Routes disabled during development (database disabled)
 app.use('/api/liff', liffRoutes);
+app.use('/api/telegram', telegramRoutes);
+app.use('/api', userSettingsRoutes);
 
 // Start server
 app.listen(config.server.port, async () => {
-  logger.info(`Server started on port ${config.server.port}`);
-  logger.info('Gold Trading System initialized');
-
-  // Send startup notification
-  await lineNotifier.sendMessage('🚀 Gold Trading System Started!');
+  logger.info(`🚀 Server started on port ${config.server.port}`);
+  
+  // Send startup message to both LINE and Telegram
+  const startupMsg = '🚀 Gold Trading System Started!';
+  await lineNotifier.sendMessage(startupMsg);
+  await telegramNotifier.sendMessage(startupMsg);
 
   // Run immediately on startup
   await tradingSignal.processSignal();
@@ -92,6 +114,12 @@ app.listen(config.server.port, async () => {
 // Graceful shutdown
 process.on('SIGINT', async () => {
   logger.info('Shutting down gracefully...');
-  await lineNotifier.sendMessage('⏹️ Gold Trading System Stopped');
+  try {
+    const shutdownMsg = '⏹️ Gold Trading System Stopped';
+    await lineNotifier.sendMessage(shutdownMsg);
+    await telegramNotifier.sendMessage(shutdownMsg);
+  } catch (error) {
+    logger.error('Error sending shutdown messages:', error.message);
+  }
   process.exit(0);
 });

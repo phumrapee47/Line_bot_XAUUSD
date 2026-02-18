@@ -1,28 +1,72 @@
 const { Sequelize } = require('sequelize');
-const path = require('path');
 const logger = require('../utils/logger');
+require('dotenv').config();
 
-// ใช้ SQLite with better-sqlite3
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: path.join(__dirname, '../../data/trading_bot.db'),
-  logging: false, // Set to false to reduce logs
-  define: {
-    timestamps: true,
-    underscored: true
-  },
-  dialectOptions: {
-    busyTimeout: 3000
-  }
-});
+let sequelize;
 
-// Test connection
-sequelize.authenticate()
-  .then(() => {
-    logger.info('Database connection established successfully');
-  })
-  .catch((error) => {
-    logger.error(`Database connection failed: ${error.message}`);
+// Check if we are in production or have a valid database URL
+if (process.env.DATABASE_URL) {
+  logger.info('Initializing database connection with SSL...');
+  
+  sequelize = new Sequelize(process.env.DATABASE_URL, {
+    dialect: 'postgres',
+    logging: msg => logger.debug(msg),
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false // Required for Render
+      }
+    },
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000
+    }
   });
+
+  // Test connection
+  sequelize.authenticate()
+    .then(() => {
+      logger.info('Database connection established successfully.');
+    })
+    .catch(err => {
+      logger.error('Unable to connect to the database:', err);
+    });
+
+} else {
+  // Fallback for local development without database
+  logger.info('No DATABASE_URL found. Using mock database for development.');
+  
+  const mockSequelize = {
+    authenticate: async () => {
+      logger.info('Database authentication skipped (mock mode)');
+      return true;
+    },
+    sync: async () => {
+      logger.info('Database sync skipped (mock mode)');
+      return true;
+    },
+    close: async () => {
+      logger.info('Database connection closed (mock mode)');
+      return true;
+    },
+    define: (name, schema) => {
+      return {
+        name,
+        schema,
+        findAll: async () => [],
+        findOne: async () => null,
+        create: async () => ({}),
+        update: async () => [0],
+        destroy: async () => 0,
+        belongsTo: () => {},
+        hasMany: () => {}
+      };
+    }
+  };
+  
+  sequelize = mockSequelize;
+}
 
 module.exports = sequelize;

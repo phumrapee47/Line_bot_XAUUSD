@@ -9,6 +9,13 @@ module.exports = {
     useBroadcast: process.env.USE_BROADCAST !== 'false'  // Default = true (ส่งให้ทุกคน)
   },
 
+  // Telegram Configuration
+  telegram: {
+    botToken: process.env.TELEGRAM_BOT_TOKEN || null,
+    userId: process.env.TELEGRAM_USER_ID || null,
+    enabled: process.env.TELEGRAM_ENABLED !== 'false'  // Default = true if token set
+  },
+
   // Model Configuration
   models: {
     technicalModelPath: process.env.TECHNICAL_MODEL_PATH,

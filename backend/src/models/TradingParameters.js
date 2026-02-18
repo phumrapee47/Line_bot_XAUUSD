@@ -11,6 +11,7 @@ const TradingParameters = sequelize.define('TradingParameters', {
   userId: {
     type: DataTypes.INTEGER,
     columnName: 'user_id',
+    unique: true,
     allowNull: false,
     references: {
       model: User,
@@ -86,9 +87,9 @@ const TradingParameters = sequelize.define('TradingParameters', {
   tableName: 'trading_parameters',
   timestamps: true,
   underscored: true,
-  indexes: [
-    { fields: ['user_id'], unique: true }
-  ]
+    // indexes: [
+    //   // { fields: ['user_id'], unique: true }
+    // ]
 });
 
 // Association
