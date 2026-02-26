@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "http-server . -p 3001 -c-1",
     "serve": "http-server . -p 3001 -g",
-    "start": "node -e \"const http = require('http'); const fs = require('fs'); const path = require('path'); http.createServer((req, res) => { res.setHeader('Access-Control-Allow-Origin', '*'); res.setHeader('Content-Type', 'text/html; charset=utf-8'); const file = req.url === '/' ? 'liff-enhanced-settings.html' : req.url; const filePath = path.join(__dirname, file); try { res.end(fs.readFileSync(filePath)); } catch { res.writeHead(404); res.end('Not Found'); } }).listen(process.env.PORT || 3001); console.log('Frontend running on port', process.env.PORT || 3001); \""
+    "start": "node -e \"const http = require('http'); const fs = require('fs'); const path = require('path'); http.createServer((req, res) => { res.setHeader('Access-Control-Allow-Origin', '*'); res.setHeader('Content-Type', 'text/html; charset=utf-8'); const urlPath = req.url.split('?')[0]; const file = urlPath === '/' ? 'liff-enhanced-settings.html' : urlPath.startsWith('/') ? urlPath.slice(1) : urlPath; if (!file) { res.writeHead(404); return res.end('Not Found'); } const filePath = path.join(__dirname, file); try { if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) { res.end(fs.readFileSync(filePath)); } else { throw new Error('Not a file'); } } catch (e) { res.writeHead(404); res.end('Not Found'); } }).listen(process.env.PORT || 3001); console.log('Frontend running on port', process.env.PORT || 3001); \""
   },
   "keywords": [
     "liff",
