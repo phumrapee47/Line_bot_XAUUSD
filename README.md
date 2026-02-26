@@ -2,8 +2,6 @@
 
 Automated trading bot that uses Machine Learning to analyze Gold (XAUUSD) market and sends trading signals via **LINE Messaging API**.
 
-⚠️ **Note:** LINE Notify service ended on March 31, 2025. This bot now uses **LINE Messaging API** instead.
-
 ## Features
 
 - 📊 **Technical Analysis**: Uses XGBoost model to predict price direction
@@ -221,6 +219,4 @@ For issues and questions, check logs and verify:
 4. Python 3.8+ installed
 5. XGBoost model file exists
 
----
 
-**⚠️ Disclaimer**: This bot is for educational purposes. Trading involves risk. Always do your own research before trading real money.
