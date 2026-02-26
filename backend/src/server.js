@@ -79,10 +79,22 @@ app.get('/api/status', (req, res) => {
   });
 });
 
-// LINE Webhook endpoint (for webhook validation)
+// Webhook routes
 app.post('/webhook', (req, res) => {
   logger.info('LINE Webhook received');
   res.status(200).json({ success: true });
+});
+
+// Telegram Webhook
+app.post('/telegram/webhook', async (req, res) => {
+  try {
+    // logger.debug('Telegram Webhook received:', JSON.stringify(req.body));
+    await telegramNotifier.handleWebhook(req.body);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    logger.error('Telegram Webhook Error:', error.message);
+    res.status(500).json({ success: false });
+  }
 });
 
 // Routes disabled during development (database disabled)

@@ -248,4 +248,69 @@ router.delete('/delete/:telegramUserId', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/telegram/generate-link-code
+ * LINE user ขอรหัสเพื่อเชื่อมต่อ Telegram
+ */
+router.post('/generate-link-code', async (req, res) => {
+  try {
+    const { lineUserId } = req.body;
+    if (!lineUserId) {
+      return res.status(400).json({ success: false, error: 'lineUserId is required' });
+    }
+
+    const linkHandler = require('../services/linkHandler');
+    const { code, expiresAt } = await linkHandler.generateCode(lineUserId);
+
+    res.json({
+      success: true,
+      data: { code, expiresAt }
+    });
+  } catch (error) {
+    logger.error(`Generate link code error: ${error.message}`);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/telegram/link-status/:lineUserId
+ * ตรวจสอบสถานะการเชื่อมต่อ Telegram
+ */
+router.get('/link-status/:lineUserId', async (req, res) => {
+  try {
+    const { lineUserId } = req.params;
+    const linkHandler = require('../services/linkHandler');
+    const status = await linkHandler.getLinkStatus(lineUserId);
+
+    res.json({
+      success: true,
+      data: status
+    });
+  } catch (error) {
+    logger.error(`Get link status error: ${error.message}`);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/telegram/unlink
+ * ยกเลิกการเชื่อมต่อ Telegram
+ */
+router.post('/unlink', async (req, res) => {
+  try {
+    const { lineUserId } = req.body;
+    if (!lineUserId) {
+      return res.status(400).json({ success: false, error: 'lineUserId is required' });
+    }
+
+    const linkHandler = require('../services/linkHandler');
+    const result = await linkHandler.unlinkTelegram(lineUserId);
+
+    res.json(result);
+  } catch (error) {
+    logger.error(`Unlink error: ${error.message}`);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
 module.exports = router;

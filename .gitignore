@@ -46,3 +46,13 @@ temp/
 *.tmp
 .coverage
 htmlcov/
+
+# Documentation & Data
+*.md
+backend/data/*.json
+backend/data/graphs/*.png
+backend/data/predictions/*.png
+!README.md  # Keep README if you want, but the user said "ลบไฟล์ .md" 
+             # I will follow strictly and and allow the user to decide later 
+             # if they want to restore README. 
+             # Actually, I'll just ignore all .md as requested.

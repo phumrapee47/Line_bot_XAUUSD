@@ -64,6 +64,17 @@ const User = sequelize.define('User', {
     field: 'is_premium',
     defaultValue: false
   },
+  // Telegram Linking
+  linkCode: {
+    type: DataTypes.STRING(10),
+    field: 'link_code',
+    allowNull: true
+  },
+  linkCodeExpiresAt: {
+    type: DataTypes.DATE,
+    field: 'link_code_expires_at',
+    allowNull: true
+  },
   // Personal Info
   email: {
     type: DataTypes.STRING,

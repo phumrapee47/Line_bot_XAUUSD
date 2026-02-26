@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,11 +9,20 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://d.line-scdn.net/liff/d/v2/sdk.js"></script>
     <style>
-        [v-cloak] { display: none; }
-        input[type="range"] { accent-color: #10b981; }
-        .tab-active { @apply border-b-2 border-green-500 text-green-600; }
+        [v-cloak] {
+            display: none;
+        }
+
+        input[type="range"] {
+            accent-color: #10b981;
+        }
+
+        .tab-active {
+            @apply border-b-2 border-green-500 text-green-600;
+        }
     </style>
 </head>
+
 <body class="bg-gray-50" v-cloak>
     <div id="app" class="min-h-screen">
         <!-- Loading State -->
@@ -32,47 +42,42 @@
             </div>
 
             <!-- Alert Messages -->
-            <div v-if="message.text" :class="`mb-4 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-100 text-green-700 border border-green-400' : 'bg-red-100 text-red-700 border border-red-400'}`">
+            <div v-if="message.text"
+                :class="`mb-4 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-100 text-green-700 border border-green-400' : 'bg-red-100 text-red-700 border border-red-400'}`">
                 {{ message.text }}
             </div>
 
             <!-- Tabs -->
             <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-lg">
-                <button 
-                    v-for="tab in tabs" 
-                    :key="tab"
-                    @click="activeTab = tab"
-                    :class="`flex-1 py-3 px-4 font-semibold transition ${activeTab === tab ? 'tab-active' : 'text-gray-500 hover:text-gray-700'}`"
-                >
+                <button v-for="tab in tabs" :key="tab" @click="activeTab = tab"
+                    :class="`flex-1 py-3 px-4 font-semibold transition ${activeTab === tab ? 'tab-active' : 'text-gray-500 hover:text-gray-700'}`">
                     <span v-if="tab === 'pairs'">📊 คู่เงิน</span>
                     <span v-else-if="tab === 'notifications'">🔔 การแจ้งเตือน</span>
                     <span v-else-if="tab === 'parameters'">⚙️ พารามิเตอร์</span>
+                    <span v-else-if="tab === 'telegram'">🔗 Telegram</span>
                 </button>
             </div>
 
             <!-- Tab 1: Trading Pairs Selection -->
             <div v-if="activeTab === 'pairs'" class="bg-white rounded-lg shadow-md p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">📊 เลือกคู่เงินที่ต้องการติดตาม</h2>
-                
+
                 <div v-if="availablePairs.length === 0" class="text-center py-8 text-gray-500">
                     <p>ไม่มีคู่เงินที่พร้อมใช้</p>
                 </div>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div v-for="pair in availablePairs" :key="pair.id" class="border border-gray-300 rounded-lg p-4 hover:shadow-md transition">
+                    <div v-for="pair in availablePairs" :key="pair.id"
+                        class="border border-gray-300 rounded-lg p-4 hover:shadow-md transition">
                         <div class="flex items-start gap-3">
-                            <input 
-                                type="checkbox" 
-                                :id="`pair-${pair.id}`"
-                                v-model="selectedPairs"
-                                :value="pair.id"
-                                class="mt-1 w-5 h-5 accent-green-500"
-                            >
+                            <input type="checkbox" :id="`pair-${pair.id}`" v-model="selectedPairs" :value="pair.id"
+                                class="mt-1 w-5 h-5 accent-green-500">
                             <label :for="`pair-${pair.id}`" class="flex-1 cursor-pointer">
                                 <div class="font-semibold text-gray-800">{{ pair.pairCode }}</div>
                                 <div class="text-sm text-gray-600">{{ pair.pairName }}</div>
                                 <div class="text-xs text-gray-500 mt-1">
-                                    <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">{{ pair.assetType }}</span>
+                                    <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">{{ pair.assetType
+                                        }}</span>
                                 </div>
                             </label>
                             <div v-if="isSelected(pair.id)" class="text-green-500 font-bold">✓</div>
@@ -81,28 +86,19 @@
                         <!-- Per-pair settings (show when pair is selected) -->
                         <div v-if="isSelected(pair.id)" class="mt-4 pt-4 border-t border-gray-200 space-y-3">
                             <div>
-                                <label class="text-sm font-semibold text-gray-700">Buy Threshold: <span class="text-green-600">{{ getPairSettings(pair.id).buyThreshold }}</span></label>
-                                <input 
-                                    v-model.number="getPairSettings(pair.id).buyThreshold" 
-                                    type="range" 
-                                    min="0" 
-                                    max="100" 
-                                    step="1"
-                                    class="w-full"
-                                >
+                                <label class="text-sm font-semibold text-gray-700">Buy Threshold: <span
+                                        class="text-green-600">{{ getPairSettings(pair.id).buyThreshold
+                                        }}</span></label>
+                                <input v-model.number="getPairSettings(pair.id).buyThreshold" type="range" min="0"
+                                    max="100" step="1" class="w-full">
                                 <p class="text-xs text-gray-500">ระหว่าง 0-100 (เปอร์เซ็นต์)</p>
                             </div>
-                            
+
                             <div>
-                                <label class="text-sm font-semibold text-gray-700">Sell Threshold: <span class="text-red-600">{{ getPairSettings(pair.id).sellThreshold }}</span></label>
-                                <input 
-                                    v-model.number="getPairSettings(pair.id).sellThreshold" 
-                                    type="range" 
-                                    min="0" 
-                                    max="100" 
-                                    step="1"
-                                    class="w-full"
-                                >
+                                <label class="text-sm font-semibold text-gray-700">Sell Threshold: <span
+                                        class="text-red-600">{{ getPairSettings(pair.id).sellThreshold }}</span></label>
+                                <input v-model.number="getPairSettings(pair.id).sellThreshold" type="range" min="0"
+                                    max="100" step="1" class="w-full">
                                 <p class="text-xs text-gray-500">ระหว่าง 0-100 (เปอร์เซ็นต์)</p>
                             </div>
                         </div>
@@ -112,7 +108,7 @@
                 <!-- Summary -->
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
                     <p class="text-sm text-blue-700">
-                        <strong>✓ เลือกแล้ว:</strong> 
+                        <strong>✓ เลือกแล้ว:</strong>
                         <span class="font-bold">{{ selectedPairs.length }} / {{ availablePairs.length }}</span> คู่เงิน
                     </p>
                 </div>
@@ -127,24 +123,16 @@
                     <h3 class="font-semibold text-gray-700 mb-3">📲 ช่องทางการแจ้งเตือน</h3>
                     <div class="space-y-3">
                         <div class="flex items-center gap-3">
-                            <input 
-                                type="checkbox" 
-                                id="line-enabled"
-                                v-model="notifications.lineEnabled"
-                                class="w-5 h-5 accent-green-500"
-                            >
+                            <input type="checkbox" id="line-enabled" v-model="notifications.lineEnabled"
+                                class="w-5 h-5 accent-green-500">
                             <label for="line-enabled" class="flex-1 cursor-pointer font-semibold text-gray-700">
                                 📱 LINE Message
                             </label>
                         </div>
-                        
+
                         <div class="flex items-center gap-3">
-                            <input 
-                                type="checkbox" 
-                                id="telegram-enabled"
-                                v-model="notifications.telegramEnabled"
-                                class="w-5 h-5 accent-green-500"
-                            >
+                            <input type="checkbox" id="telegram-enabled" v-model="notifications.telegramEnabled"
+                                class="w-5 h-5 accent-green-500">
                             <label for="telegram-enabled" class="flex-1 cursor-pointer font-semibold text-gray-700">
                                 🔵 Telegram Message
                             </label>
@@ -157,24 +145,16 @@
                     <h3 class="font-semibold text-gray-700 mb-3">📈 ประเภทสัญญาณ</h3>
                     <div class="space-y-3">
                         <div class="flex items-center gap-3">
-                            <input 
-                                type="checkbox" 
-                                id="buy-signals"
-                                v-model="notifications.buySignals"
-                                class="w-5 h-5 accent-green-500"
-                            >
+                            <input type="checkbox" id="buy-signals" v-model="notifications.buySignals"
+                                class="w-5 h-5 accent-green-500">
                             <label for="buy-signals" class="flex-1 cursor-pointer font-semibold text-gray-700">
                                 🟢 BUY Signals
                             </label>
                         </div>
-                        
+
                         <div class="flex items-center gap-3">
-                            <input 
-                                type="checkbox" 
-                                id="sell-signals"
-                                v-model="notifications.sellSignals"
-                                class="w-5 h-5 accent-green-500"
-                            >
+                            <input type="checkbox" id="sell-signals" v-model="notifications.sellSignals"
+                                class="w-5 h-5 accent-green-500">
                             <label for="sell-signals" class="flex-1 cursor-pointer font-semibold text-gray-700">
                                 🔴 SELL Signals
                             </label>
@@ -187,12 +167,8 @@
                     <h3 class="font-semibold text-gray-700 mb-3">🔕 เวลาปิดการแจ้งเตือน (Quiet Hours)</h3>
                     <div class="space-y-3">
                         <div class="flex items-center gap-3">
-                            <input 
-                                type="checkbox" 
-                                id="quiet-hours-enabled"
-                                v-model="notifications.quietHoursEnabled"
-                                class="w-5 h-5 accent-green-500"
-                            >
+                            <input type="checkbox" id="quiet-hours-enabled" v-model="notifications.quietHoursEnabled"
+                                class="w-5 h-5 accent-green-500">
                             <label for="quiet-hours-enabled" class="cursor-pointer font-semibold text-gray-700">
                                 เปิดใช้งาน Quiet Hours
                             </label>
@@ -200,20 +176,16 @@
 
                         <div v-if="notifications.quietHoursEnabled" class="ml-8 space-y-3">
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">เพิ่มเข้า (Start Time)</label>
-                                <input 
-                                    v-model="notifications.quietHourStart" 
-                                    type="time"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                >
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">เพิ่มเข้า (Start
+                                    Time)</label>
+                                <input v-model="notifications.quietHourStart" type="time"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">เพิ่มออก (End Time)</label>
-                                <input 
-                                    v-model="notifications.quietHourEnd" 
-                                    type="time"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                >
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">เพิ่มออก (End
+                                    Time)</label>
+                                <input v-model="notifications.quietHourEnd" type="time"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                             </div>
                             <p class="text-xs text-gray-600">ในช่วงเวลานี้ จะไม่ได้รับการแจ้งเตือน</p>
                         </div>
@@ -223,7 +195,8 @@
                 <!-- Notification Frequency -->
                 <div>
                     <h3 class="font-semibold text-gray-700 mb-3">⏱️ ความถี่การแจ้งเตือน</h3>
-                    <select v-model="notifications.frequency" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    <select v-model="notifications.frequency"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                         <option value="instant">🔴 ทันที (Instant)</option>
                         <option value="hourly">🟡 รายชั่วโมง (Hourly)</option>
                         <option value="daily">🟢 รายวัน (Daily)</option>
@@ -235,19 +208,13 @@
             <!-- Tab 3: Technical Parameters -->
             <div v-if="activeTab === 'parameters'" class="bg-white rounded-lg shadow-md p-6 space-y-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">⚙️ ตั้งค่าตัวบ่งชี้ทางเทคนิค</h2>
-                
+
                 <!-- RSI Period -->
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         RSI Period: <span class="text-green-600">{{ params.rsiPeriod }}</span> วัน
                     </label>
-                    <input 
-                        v-model.number="params.rsiPeriod" 
-                        type="range" 
-                        min="5" 
-                        max="30" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.rsiPeriod" type="range" min="5" max="30" class="w-full">
                     <p class="text-xs text-gray-500 mt-1">ระหว่าง 5-30 (ค่าต่ำ = ไว ต่อการเปลี่ยนแปลง)</p>
                 </div>
 
@@ -256,13 +223,7 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         SMA ระยะสั้น: <span class="text-green-600">{{ params.smaShort }}</span> วัน
                     </label>
-                    <input 
-                        v-model.number="params.smaShort" 
-                        type="range" 
-                        min="5" 
-                        max="50" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.smaShort" type="range" min="5" max="50" class="w-full">
                     <p class="text-xs text-gray-500 mt-1">ระหว่าง 5-50 วัน</p>
                 </div>
 
@@ -271,13 +232,7 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         SMA ระยะยาว: <span class="text-green-600">{{ params.smaLong }}</span> วัน
                     </label>
-                    <input 
-                        v-model.number="params.smaLong" 
-                        type="range" 
-                        min="20" 
-                        max="200" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.smaLong" type="range" min="20" max="200" class="w-full">
                     <p class="text-xs text-gray-500 mt-1">ระหว่าง 20-200 วัน</p>
                 </div>
 
@@ -286,13 +241,7 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         ATR Period: <span class="text-green-600">{{ params.atrPeriod }}</span> วัน
                     </label>
-                    <input 
-                        v-model.number="params.atrPeriod" 
-                        type="range" 
-                        min="3" 
-                        max="20" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.atrPeriod" type="range" min="3" max="20" class="w-full">
                     <p class="text-xs text-gray-500 mt-1">ระหว่าง 3-20 วัน</p>
                 </div>
 
@@ -301,14 +250,7 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         น้ำหนัก RSI: <span class="text-green-600">{{ (params.rsiWeight * 100).toFixed(0) }}%</span>
                     </label>
-                    <input 
-                        v-model.number="params.rsiWeight" 
-                        type="range" 
-                        min="0" 
-                        max="1" 
-                        step="0.05" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.rsiWeight" type="range" min="0" max="1" step="0.05" class="w-full">
                     <p class="text-xs text-gray-500 mt-1">อิทธิพลของ RSI ต่อการตัดสินใจ</p>
                 </div>
 
@@ -317,14 +259,7 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         น้ำหนัก SMA: <span class="text-green-600">{{ (params.smaWeight * 100).toFixed(0) }}%</span>
                     </label>
-                    <input 
-                        v-model.number="params.smaWeight" 
-                        type="range" 
-                        min="0" 
-                        max="1" 
-                        step="0.05" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.smaWeight" type="range" min="0" max="1" step="0.05" class="w-full">
                     <p class="text-xs text-gray-500 mt-1">อิทธิพลของ SMA ต่อการตัดสินใจ</p>
                 </div>
 
@@ -333,14 +268,8 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         TP Multiplier: <span class="text-green-600">{{ params.tpMultiplier.toFixed(1) }}x ATR</span>
                     </label>
-                    <input 
-                        v-model.number="params.tpMultiplier" 
-                        type="range" 
-                        min="0.5" 
-                        max="5" 
-                        step="0.1" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.tpMultiplier" type="range" min="0.5" max="5" step="0.1"
+                        class="w-full">
                     <p class="text-xs text-gray-500 mt-1">ระยะ Take Profit (0.5-5.0x ATR)</p>
                 </div>
 
@@ -349,21 +278,15 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         SL Multiplier: <span class="text-green-600">{{ params.slMultiplier.toFixed(1) }}x ATR</span>
                     </label>
-                    <input 
-                        v-model.number="params.slMultiplier" 
-                        type="range" 
-                        min="0.3" 
-                        max="3" 
-                        step="0.1" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.slMultiplier" type="range" min="0.3" max="3" step="0.1"
+                        class="w-full">
                     <p class="text-xs text-gray-500 mt-1">ระยะ Stop Loss (0.3-3.0x ATR)</p>
                 </div>
 
                 <!-- Info Box -->
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
                     <p class="text-sm text-blue-700">
-                        <strong>📊 Risk/Reward Ratio:</strong> 
+                        <strong>📊 Risk/Reward Ratio:</strong>
                         <span class="font-bold">1 : {{ (params.tpMultiplier / params.slMultiplier).toFixed(2) }}</span>
                     </p>
                     <p class="text-xs text-blue-600 mt-2">ยิ่งสูง = หวังกำไรมากขึ้น, ยิ่งต่ำ = เสี่ยงมากขึ้น</p>
@@ -381,22 +304,95 @@
                 </div>
             </div>
 
+            <!-- Tab 4: Telegram Link -->
+            <div v-if="activeTab === 'telegram'" class="bg-white rounded-lg shadow-md p-6 space-y-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">🔗 เชื่อมต่อ Telegram</h2>
+
+                <!-- Linked State -->
+                <div v-if="telegramStatus.linked" class="text-center py-8 space-y-4">
+                    <div class="inline-block p-4 bg-green-100 rounded-full">
+                        <span class="text-4xl">✅</span>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold text-gray-800">เชื่อมต่อแล้ว</h3>
+                        <p class="text-gray-600 mt-1">บัญชี Telegram: <span class="font-bold text-blue-600">@{{
+                                telegramStatus.telegramUsername }}</span></p>
+                    </div>
+                    <p class="text-sm text-gray-500">คุณจะได้รับการแจ้งเตือนสัญญาณเทรดผ่าน Telegram Bot</p>
+
+                    <button @click="unlinkTelegram"
+                        class="mt-4 px-6 py-2 border border-red-500 text-red-500 font-semibold rounded-lg hover:bg-red-50 transition">
+                        ยกเลิกการเชื่อมต่อ
+                    </button>
+                </div>
+
+                <!-- Not Linked / Generation State -->
+                <div v-else class="space-y-6">
+                    <div v-if="!linkData.code" class="text-center py-6 space-y-4">
+                        <div class="inline-block p-4 bg-blue-100 rounded-full">
+                            <span class="text-4xl">🔗</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-gray-800">ยังไม่ได้เชื่อมต่อ Telegram</h3>
+                        <p class="text-gray-600">เชื่อมต่อเพื่อรับการแจ้งเตือนผ่าน Telegram แข็งแรงกว่า LINE
+                            ในบางสถานการณ์</p>
+
+                        <button @click="generateLinkCode" :disabled="generating"
+                            class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-8 rounded-lg transition disabled:bg-gray-400">
+                            <span v-if="!generating">ขอรหัสเชื่อมต่อ</span>
+                            <span v-else>กำลังสร้างรหัส...</span>
+                        </button>
+                    </div>
+
+                    <!-- Show Code & Instructions -->
+                    <div v-if="linkData.code" class="bg-blue-50 border border-blue-200 rounded-lg p-6 space-y-4">
+                        <div class="text-center">
+                            <p class="text-sm text-blue-700 font-semibold mb-2">รหัสเชื่อมต่อของคุณคือ:</p>
+                            <div
+                                class="text-4xl font-extrabold tracking-widest text-blue-800 bg-white inline-block px-6 py-3 rounded-lg shadow-inner border border-blue-200">
+                                {{ linkData.code }}
+                            </div>
+                            <p class="text-xs text-blue-600 mt-3">รหัสหมดอายุใน: <span class="font-bold">{{
+                                    countdownText }}</span></p>
+                        </div>
+
+                        <div class="pt-4 border-t border-blue-200">
+                            <h4 class="font-bold text-gray-800 mb-2">ขั้นตอนการเชื่อมต่อ:</h4>
+                            <ol class="text-sm text-gray-700 space-y-2 list-decimal ml-4">
+                                <li>เปิด Telegram แล้วค้นหายูสเซอร์บอทของคุณ</li>
+                                <li>กด <b>Start</b> หรือพิมพ์ <code>/start</code></li>
+                                <li>พิมพ์ <code>/link {{ linkData.code }}</code> แล้วกดส่ง</li>
+                                <li>รอข้อความยืนยันจากบอท</li>
+                            </ol>
+                        </div>
+
+                        <div class="flex items-center gap-2 text-xs text-blue-700 bg-blue-100 p-3 rounded">
+                            <span class="animate-pulse">🔄</span>
+                            กำลังรอการเชื่อมต่อ... บอทจะตรวจสถานะให้อัตโนมัติ
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Box -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-gray-700 mb-2">💡 ทำไมต้องเชื่อมต่อ?</h3>
+                    <ul class="text-sm text-gray-600 space-y-1">
+                        <li>✓ รับการแจ้งเตือนได้รวดเร็วและแม่นยำ</li>
+                        <li>✓ จัดการข้อความได้ง่ายกว่า</li>
+                        <li>✓ รองรับการดูย้อนหลังได้ยาวนานกว่า</li>
+                    </ul>
+                </div>
+            </div>
+
             <!-- Action Buttons -->
             <div class="flex gap-4 mt-6 mb-8">
-                <button 
-                    @click="saveSettings"
-                    :disabled="saving"
-                    class="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition"
-                >
+                <button @click="saveSettings" :disabled="saving"
+                    class="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition">
                     <span v-if="!saving">💾 บันทึกทั้งหมด</span>
                     <span v-else>กำลังบันทึก...</span>
                 </button>
-                
-                <button 
-                    @click="resetToDefault"
-                    :disabled="saving"
-                    class="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition"
-                >
+
+                <button @click="resetToDefault" :disabled="saving"
+                    class="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition">
                     🔄 รีเซ็ต
                 </button>
             </div>
@@ -416,10 +412,10 @@
             data() {
                 return {
                     activeTab: 'pairs',
-                    tabs: ['pairs', 'notifications', 'parameters'],
+                    tabs: ['pairs', 'notifications', 'parameters', 'telegram'],
                     userId: null,
                     backendUrl: process.env.VUE_APP_API_URL || 'https://api.example.com',
-                    
+
                     // Trading Pairs
                     availablePairs: [],
                     selectedPairs: [],
@@ -449,13 +445,21 @@
                         slMultiplier: 1.0
                     },
 
+                    // Telegram
+                    telegramStatus: { linked: false, telegramUsername: '' },
+                    linkData: { code: '', expiresAt: null },
+                    generating: false,
+                    countdownTimer: null,
+                    countdownText: '10:00',
+                    pollTimer: null,
+
                     // UI States
                     loading: true,
                     saving: false,
                     message: { text: '', type: '' }
                 };
             },
-            
+
             mounted() {
                 this.initLiff();
             },
@@ -475,14 +479,14 @@
                         const configUrl = `${this.getBackendUrl()}/api/liff/config`;
                         const configResponse = await fetch(configUrl);
                         const configData = await configResponse.json();
-                        
+
                         if (!configData.success) {
                             throw new Error('Failed to get LIFF configuration');
                         }
-                        
+
                         const liffId = configData.liffId;
                         await liff.init({ liffId });
-                        
+
                         if (!liff.isLoggedIn()) {
                             liff.login();
                             return;
@@ -490,7 +494,7 @@
 
                         const profile = await liff.getProfile();
                         this.userId = profile.userId;
-                        
+
                         await this.loadAllSettings();
                     } catch (error) {
                         console.error('Error:', error);
@@ -513,7 +517,7 @@
                         const userData = await userResponse.json();
                         if (userData.success) {
                             const user = userData.data;
-                            
+
                             // Load trading pairs for this user
                             if (user.userTradingPairs) {
                                 this.selectedPairs = user.userTradingPairs.map(p => p.tradingPairId);
@@ -559,6 +563,97 @@
                         this.showMessage(`ไม่สามารถโหลดการตั้งค่า: ${error.message}`, 'error');
                     } finally {
                         this.loading = false;
+                        await this.fetchTelegramStatus();
+                    }
+                },
+
+                async fetchTelegramStatus() {
+                    try {
+                        const response = await fetch(`${this.getBackendUrl()}/api/telegram/link-status/${this.userId}`);
+                        const data = await response.json();
+                        if (data.success) {
+                            this.telegramStatus = data.data;
+
+                            // If successfully linked and we were polling, stop polling
+                            if (this.telegramStatus.linked && this.pollTimer) {
+                                clearInterval(this.pollTimer);
+                                this.pollTimer = null;
+                                this.linkData = { code: '', expiresAt: null };
+                                this.showMessage('✅ เชื่อมต่อ Telegram สำเร็จ!', 'success');
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error fetching telegram status:', error);
+                    }
+                },
+
+                async generateLinkCode() {
+                    this.generating = true;
+                    try {
+                        const response = await fetch(`${this.getBackendUrl()}/api/telegram/generate-link-code`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ lineUserId: this.userId })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            this.linkData = data.data;
+                            this.startCountdown();
+
+                            // Start polling for status changes
+                            if (this.pollTimer) clearInterval(this.pollTimer);
+                            this.pollTimer = setInterval(() => this.fetchTelegramStatus(), 5000);
+                        } else {
+                            this.showMessage(`เกิดข้อผิดพลาด: ${data.error}`, 'error');
+                        }
+                    } catch (error) {
+                        this.showMessage(`ไม่สามารถขอรหัส: ${error.message}`, 'error');
+                    } finally {
+                        this.generating = false;
+                    }
+                },
+
+                startCountdown() {
+                    if (this.countdownTimer) clearInterval(this.countdownTimer);
+
+                    const updateCountdown = () => {
+                        const now = new Date();
+                        const expiry = new Date(this.linkData.expiresAt);
+                        const diff = expiry - now;
+
+                        if (diff <= 0) {
+                            clearInterval(this.countdownTimer);
+                            this.countdownText = '00:00';
+                            this.linkData = { code: '', expiresAt: null };
+                            if (this.pollTimer) clearInterval(this.pollTimer);
+                            return;
+                        }
+
+                        const mins = Math.floor(diff / 60000);
+                        const secs = Math.floor((diff % 60000) / 1000);
+                        this.countdownText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                    };
+
+                    updateCountdown();
+                    this.countdownTimer = setInterval(updateCountdown, 1000);
+                },
+
+                async unlinkTelegram() {
+                    if (!confirm('ต้องการยกเลิกการเชื่อมต่อ Telegram?')) return;
+
+                    try {
+                        const response = await fetch(`${this.getBackendUrl()}/api/telegram/unlink`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ lineUserId: this.userId })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            this.telegramStatus = { linked: false, telegramUsername: '' };
+                            this.showMessage('ยกเลิกการเชื่อมต่อแล้ว', 'success');
+                        }
+                    } catch (error) {
+                        this.showMessage(`เกิดข้อผิดพลาด: ${error.message}`, 'error');
                     }
                 },
 
@@ -597,7 +692,7 @@
                         });
 
                         const data = await response.json();
-                        
+
                         if (data.success) {
                             this.showMessage('✓ บันทึกการตั้งค่าเรียบร้อย!', 'success');
                         } else {
@@ -612,7 +707,7 @@
 
                 async resetToDefault() {
                     if (!confirm('แน่ใจว่าต้องการรีเซ็ตการตั้งค่าทั้งหมด?')) return;
-                    
+
                     this.saving = true;
                     try {
                         const response = await fetch(`${this.getBackendUrl()}/api/users/${this.userId}/settings/reset`, {
@@ -621,7 +716,7 @@
                         });
 
                         const data = await response.json();
-                        
+
                         if (data.success) {
                             // Reload all settings
                             await this.loadAllSettings();
@@ -644,4 +739,5 @@
         }).mount('#app');
     </script>
 </body>
+
 </html>

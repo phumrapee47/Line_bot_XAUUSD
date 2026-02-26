@@ -1,16 +1,4 @@
 services:
-  # PostgreSQL Database
-  - type: pserv
-    name: trading-bot-db
-    runtime: postgres15
-    plan: free
-    ipAllowList: []
-    postgreSQL:
-      version: 15
-      initialDatabase: trading_bot
-      initialUser: postgres
-      initialPassword: ${POSTGRES_PASSWORD}
-
   # Frontend LIFF App (Node.js Static Server)
   - type: web
     name: xauusd-trading-bot-frontend
@@ -33,30 +21,10 @@ services:
     buildCommand: cd backend && npm install && node seeds/seedTradingPairs.js
     startCommand: cd backend && npm start
     autoDeploy: true
-    depends_on:
-      - trading-bot-db
     envVars:
-      # Database
+      # Database (Supabase PostgreSQL)
       - key: DATABASE_URL
-        fromService:
-          name: trading-bot-db
-          type: pserv
-          property: connectionString
-      - key: DB_HOST
-        fromService:
-          name: trading-bot-db
-          type: pserv
-          property: host
-      - key: DB_PORT
-        value: "5432"
-      - key: DB_NAME
-        value: trading_bot
-      - key: DB_USER
-        value: postgres
-      - key: DB_PASSWORD
-        sync: false
-      - key: DB_SSL
-        value: "true"
+        sync: false  # Set this to your Supabase connection string in Render dashboard
       
       # Server
       - key: NODE_ENV
@@ -106,16 +74,9 @@ services:
     startCommand: cd ml-models && python scheduler.py
     autoDeploy: true
     envVars:
-      # Database (for logging signals)
-      - key: DB_HOST
-        fromService:
-          name: trading-bot-db
-          type: pserv
-          property: host
-      - key: DB_NAME
-        value: trading_bot
-      - key: POSTGRES_PASSWORD
-        sync: false
+      # Database (Supabase PostgreSQL)
+      - key: DATABASE_URL
+        sync: false  # Set this to your Supabase connection string in Render dashboard
       
       # API Keys
       - key: GEMINI_API_KEY

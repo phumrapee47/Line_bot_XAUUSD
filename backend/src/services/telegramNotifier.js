@@ -164,6 +164,48 @@ Confidence: ${(signalData.confidence * 100).toFixed(2)}%
     logger.info(`✓ Sending valid Telegram trading signal - Price: $${signalData.price.toFixed(2)}`);
     return await this.sendMessage(message);
   }
+
+  /**
+   * Handle incoming updates from Telegram Webhook
+   * @param {Object} update 
+   */
+  async handleWebhook(update) {
+    try {
+      if (!update.message || !update.message.text) return;
+
+      const message = update.message;
+      const text = message.text.trim();
+      const chatId = message.chat.id;
+
+      // Handle /link <CODE>
+      if (text.startsWith('/link')) {
+        const parts = text.split(' ');
+        if (parts.length < 2) {
+          await this.sendTelegramMessage('⚠️ Please provide the link code. Format: <code>/link 123456</code>', chatId);
+          return;
+        }
+
+        const code = parts[1];
+        const linkHandler = require('./linkHandler');
+        const result = await linkHandler.verifyCode(code, {
+          id: message.from.id,
+          username: message.from.username,
+          first_name: message.from.first_name,
+          last_name: message.from.last_name
+        });
+
+        if (result.success) {
+          await this.sendTelegramMessage(`✅ <b>Success!</b>\nYour Telegram account has been linked to your LINE account.\nYou will now receive trading signals here.`, chatId);
+        } else {
+          await this.sendTelegramMessage(`❌ <b>Linking Failed</b>\n${result.message}`, chatId);
+        }
+      } else if (text === '/start') {
+        await this.sendTelegramMessage('👋 Welcome to the Gold Trading Bot!\nTo link your account, please go to the LINE bot settings and request a link code, then type <code>/link YOUR_CODE</code> here.', chatId);
+      }
+    } catch (error) {
+      logger.error(`Error in Telegram handleWebhook: ${error.message}`);
+    }
+  }
 }
 
 

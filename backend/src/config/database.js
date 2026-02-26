@@ -6,7 +6,7 @@ let sequelize;
 
 // Check if we are in production or have a valid database URL
 if (process.env.DATABASE_URL) {
-  logger.info('Initializing database connection with SSL...');
+  logger.info('Initializing database connection with Supabase PostgreSQL (SSL)...');
   
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
@@ -14,7 +14,7 @@ if (process.env.DATABASE_URL) {
     dialectOptions: {
       ssl: {
         require: true,
-        rejectUnauthorized: false // Required for Render
+        rejectUnauthorized: false // Required for Supabase/Render SSL
       }
     },
     pool: {
