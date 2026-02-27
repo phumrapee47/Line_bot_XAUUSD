@@ -77,6 +77,29 @@ class LinkHandler {
         linkCodeExpiresAt: null
       });
 
+      // Also ensure user is in TelegramSubscriber table to receive signals
+      try {
+        const { TelegramSubscriber } = require('../models');
+        const [subscriber, created] = await TelegramSubscriber.findOrCreate({
+          where: { telegramUserId: telegramData.id.toString() },
+          defaults: {
+            telegramUserId: telegramData.id.toString(),
+            firstName: telegramData.first_name,
+            lastName: telegramData.last_name,
+            username: telegramData.username,
+            isActive: true
+          }
+        });
+
+        if (!created && !subscriber.isActive) {
+          await subscriber.update({ isActive: true });
+        }
+        logger.info(`Automatically subscribed Telegram user ${telegramData.id} upon linking`);
+      } catch (subError) {
+        logger.error(`Error auto-subscribing Telegram user: ${subError.message}`);
+        // don't fail the whole linking process if subscription fails
+      }
+
       logger.info(`Successfully linked Telegram user ${telegramData.id} to LINE user ${user.lineUserId}`);
       return { success: true, message: 'Successfully linked!', user };
     } catch (error) {
