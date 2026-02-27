@@ -1,19 +1,26 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>⚙️ ตั้งค่าพารามิเตอร์ Trading</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://d.line-scdn.net/liff/d/v2/sdk.js"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
-        [v-cloak] { display: none; }
-        input[type="range"] { accent-color: #10b981; }
+        [v-cloak] {
+            display: none;
+        }
+
+        input[type="range"] {
+            accent-color: #10b981;
+        }
     </style>
 </head>
-<body class="bg-gray-50" v-cloak>
-    <div id="app" class="min-h-screen">
+
+<body class="bg-gray-50">
+    <div id="app" class="min-h-screen" v-cloak>
         <!-- Loading State -->
         <div v-if="loading" class="flex items-center justify-center h-screen">
             <div class="text-center">
@@ -31,25 +38,20 @@
             </div>
 
             <!-- Alert Messages -->
-            <div v-if="message.text" :class="`mb-4 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`">
+            <div v-if="message.text"
+                :class="`mb-4 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`">
                 {{ message.text }}
             </div>
 
             <!-- Parameter Form -->
             <div class="bg-white rounded-lg shadow-md p-6 space-y-6">
-                
+
                 <!-- RSI Period -->
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         RSI Period: <span class="text-green-600">{{ params.rsi_period }}</span> วัน
                     </label>
-                    <input 
-                        v-model.number="params.rsi_period" 
-                        type="range" 
-                        min="5" 
-                        max="30" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.rsi_period" type="range" min="5" max="30" class="w-full">
                     <p class="text-xs text-gray-500 mt-1">ระหว่าง 5-30 (ค่าต่ำ = ไว ต่อการเปลี่ยนแปลง)</p>
                 </div>
 
@@ -58,13 +60,7 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         SMA ระยะสั้น: <span class="text-green-600">{{ params.sma_short }}</span> วัน
                     </label>
-                    <input 
-                        v-model.number="params.sma_short" 
-                        type="range" 
-                        min="5" 
-                        max="50" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.sma_short" type="range" min="5" max="50" class="w-full">
                     <p class="text-xs text-gray-500 mt-1">ระหว่าง 5-50 วัน</p>
                 </div>
 
@@ -73,13 +69,7 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         SMA ระยะยาว: <span class="text-green-600">{{ params.sma_long }}</span> วัน
                     </label>
-                    <input 
-                        v-model.number="params.sma_long" 
-                        type="range" 
-                        min="20" 
-                        max="200" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.sma_long" type="range" min="20" max="200" class="w-full">
                     <p class="text-xs text-gray-500 mt-1">ระหว่าง 20-200 วัน</p>
                 </div>
 
@@ -88,13 +78,7 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         ATR Period: <span class="text-green-600">{{ params.atr_period }}</span> วัน
                     </label>
-                    <input 
-                        v-model.number="params.atr_period" 
-                        type="range" 
-                        min="3" 
-                        max="20" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.atr_period" type="range" min="3" max="20" class="w-full">
                     <p class="text-xs text-gray-500 mt-1">ระหว่าง 3-20 วัน</p>
                 </div>
 
@@ -103,14 +87,7 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         น้ำหนัก RSI: <span class="text-green-600">{{ (params.rsi_weight * 100).toFixed(0) }}%</span>
                     </label>
-                    <input 
-                        v-model.number="params.rsi_weight" 
-                        type="range" 
-                        min="0" 
-                        max="1" 
-                        step="0.05" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.rsi_weight" type="range" min="0" max="1" step="0.05" class="w-full">
                     <p class="text-xs text-gray-500 mt-1">อิทธิพลของ RSI ต่อการตัดสินใจ</p>
                 </div>
 
@@ -119,14 +96,7 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         น้ำหนัก SMA: <span class="text-green-600">{{ (params.sma_weight * 100).toFixed(0) }}%</span>
                     </label>
-                    <input 
-                        v-model.number="params.sma_weight" 
-                        type="range" 
-                        min="0" 
-                        max="1" 
-                        step="0.05" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.sma_weight" type="range" min="0" max="1" step="0.05" class="w-full">
                     <p class="text-xs text-gray-500 mt-1">อิทธิพลของ SMA ต่อการตัดสินใจ</p>
                 </div>
 
@@ -135,14 +105,8 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         TP Multiplier: <span class="text-green-600">{{ params.tp_multiplier.toFixed(1) }}x ATR</span>
                     </label>
-                    <input 
-                        v-model.number="params.tp_multiplier" 
-                        type="range" 
-                        min="0.5" 
-                        max="5" 
-                        step="0.1" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.tp_multiplier" type="range" min="0.5" max="5" step="0.1"
+                        class="w-full">
                     <p class="text-xs text-gray-500 mt-1">ระยะ Take Profit (0.5-5.0x ATR)</p>
                 </div>
 
@@ -151,22 +115,17 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">
                         SL Multiplier: <span class="text-green-600">{{ params.sl_multiplier.toFixed(1) }}x ATR</span>
                     </label>
-                    <input 
-                        v-model.number="params.sl_multiplier" 
-                        type="range" 
-                        min="0.3" 
-                        max="3" 
-                        step="0.1" 
-                        class="w-full"
-                    >
+                    <input v-model.number="params.sl_multiplier" type="range" min="0.3" max="3" step="0.1"
+                        class="w-full">
                     <p class="text-xs text-gray-500 mt-1">ระยะ Stop Loss (0.3-3.0x ATR)</p>
                 </div>
 
                 <!-- Info Box -->
                 <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
                     <p class="text-sm text-blue-700">
-                        <strong>📊 Risk/Reward Ratio:</strong> 
-                        <span class="font-bold">1 : {{ (params.tp_multiplier / params.sl_multiplier).toFixed(2) }}</span>
+                        <strong>📊 Risk/Reward Ratio:</strong>
+                        <span class="font-bold">1 : {{ (params.tp_multiplier / params.sl_multiplier).toFixed(2)
+                            }}</span>
                     </p>
                     <p class="text-xs text-blue-600 mt-2">ยิ่งสูง = หวังกำไรมากขึ้น, ยิ่งต่ำ = เสี่ยงมากขึ้น</p>
                 </div>
@@ -174,20 +133,14 @@
 
             <!-- Action Buttons -->
             <div class="flex gap-4 mt-6">
-                <button 
-                    @click="saveParameters"
-                    :disabled="saving"
-                    class="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition"
-                >
+                <button @click="saveParameters" :disabled="saving"
+                    class="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition">
                     <span v-if="!saving">💾 บันทึกการตั้งค่า</span>
                     <span v-else>กำลังบันทึก...</span>
                 </button>
-                
-                <button 
-                    @click="resetToDefault"
-                    :disabled="saving"
-                    class="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition"
-                >
+
+                <button @click="resetToDefault" :disabled="saving"
+                    class="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition">
                     🔄 รีเซ็ต
                 </button>
             </div>
@@ -231,7 +184,7 @@
                     message: { text: '', type: '' }
                 };
             },
-            
+
             mounted() {
                 this.initLiff();
             },
@@ -242,15 +195,15 @@
                         // Fetch LIFF ID from backend for security
                         const configResponse = await fetch('/api/liff/config');
                         const configData = await configResponse.json();
-                        
+
                         if (!configData.success) {
                             throw new Error('Failed to get LIFF configuration');
                         }
-                        
+
                         const liffId = configData.liffId;
-                        
+
                         await liff.init({ liffId });
-                        
+
                         if (!liff.isLoggedIn()) {
                             liff.login();
                             return;
@@ -258,7 +211,7 @@
 
                         const profile = await liff.getProfile();
                         this.userId = profile.userId;
-                        
+
                         await this.loadParameters();
                     } catch (error) {
                         console.error('Error:', error);
@@ -271,7 +224,7 @@
                     try {
                         const response = await fetch(`/api/liff/parameters?userId=${this.userId}`);
                         const data = await response.json();
-                        
+
                         if (data.success) {
                             this.params = { ...this.params, ...data.data };
                         }
@@ -295,7 +248,7 @@
                         });
 
                         const data = await response.json();
-                        
+
                         if (data.success) {
                             this.showMessage('✓ บันทึกการตั้งค่าเรียบร้อย!', 'success');
                         } else {
@@ -310,7 +263,7 @@
 
                 async resetToDefault() {
                     if (!confirm('แน่ใจว่าต้องการรีเซ็ตการตั้งค่า?')) return;
-                    
+
                     this.saving = true;
                     try {
                         const response = await fetch('/api/liff/parameters/reset', {
@@ -320,7 +273,7 @@
                         });
 
                         const data = await response.json();
-                        
+
                         if (data.success) {
                             this.params = { ...this.params, ...data.data };
                             this.showMessage('✓ รีเซ็ตการตั้งค่าเรียบร้อย!', 'success');
@@ -342,4 +295,5 @@
         }).mount('#app');
     </script>
 </body>
+
 </html>
