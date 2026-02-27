@@ -7,7 +7,7 @@
     <title>⚙️ ตั้งค่า Trading Bot</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://d.line-scdn.net/liff/d/v2/sdk.js"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <style>
         [v-cloak] {
             display: none;
@@ -414,7 +414,7 @@
                     activeTab: 'pairs',
                     tabs: ['pairs', 'notifications', 'parameters', 'telegram'],
                     userId: null,
-                    backendUrl: process.env.VUE_APP_API_URL || 'https://api.example.com',
+                    backendUrl: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : `https://${window.location.hostname}`,
 
                     // Trading Pairs
                     availablePairs: [],
@@ -471,7 +471,7 @@
                         return 'http://localhost:3000';
                     }
                     // In production, extract backend URL from environment or parent domain
-                    return process.env.VUE_APP_API_URL || `https://${window.location.hostname}`;
+                    return `https://${window.location.hostname}`;
                 },
 
                 async initLiff() {

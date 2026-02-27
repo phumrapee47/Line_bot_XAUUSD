@@ -102,6 +102,18 @@ app.use('/api/liff', liffRoutes);
 app.use('/api/telegram', telegramRoutes);
 app.use('/api', userSettingsRoutes);
 
+// --- Frontend Static Serving (Monolithic Deployment) ---
+const path = require('path');
+const frontendPath = path.join(__dirname, '../../frontend');
+
+// Serve static files from the frontend directory
+app.use(express.static(frontendPath));
+
+// Fallback all other GET requests to the main LIFF enhanced settings page
+app.get('*', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'liff-enhanced-settings.html'));
+});
+
 // Start server
 app.listen(config.server.port, async () => {
   logger.info(`🚀 Server started on port ${config.server.port}`);
