@@ -74,6 +74,17 @@ const UserTradingParameters = sequelize.define('UserTradingParameters', {
     field: 'history_period',
     defaultValue: '60d'
   },
+  // Multipliers (Risk Management)
+  tpMultiplier: {
+    type: DataTypes.DECIMAL(4, 2),
+    field: 'tp_multiplier',
+    defaultValue: 2.00
+  },
+  slMultiplier: {
+    type: DataTypes.DECIMAL(4, 2),
+    field: 'sl_multiplier',
+    defaultValue: 1.00
+  },
   // Timestamps
   createdAt: {
     type: DataTypes.DATE,

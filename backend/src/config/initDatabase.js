@@ -1,6 +1,6 @@
 const sequelize = require('./database');
 const logger = require('../utils/logger');
-const { User, TradingPair, UserTradingPair, UserNotificationPreferences, TradingParameters, UserTradingParameters } = require('../models');
+const { User, TradingPair, UserTradingPair, UserNotificationPreferences, UserTradingParameters } = require('../models');
 
 async function initDatabase() {
   try {

@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const TradingParameters = require('../models/TradingParameters');
+const UserTradingParameters = require('../models/UserTradingParameters');
 const logger = require('../utils/logger');
 
 class UserService {
@@ -26,7 +26,7 @@ class UserService {
       }
 
       // Create default trading parameters if not exists
-      const [params] = await TradingParameters.findOrCreate({
+      const [params] = await UserTradingParameters.findOrCreate({
         where: { userId: user.id },
         defaults: { userId: user.id }
       });
@@ -44,7 +44,7 @@ class UserService {
     try {
       const user = await User.findOne({
         where: { lineUserId },
-        include: [TradingParameters]
+        include: [UserTradingParameters]
       });
 
       if (!user) {
@@ -53,7 +53,7 @@ class UserService {
 
       return {
         user: user.toJSON(),
-        params: user.TradingParameter?.toJSON() || null
+        params: user.UserTradingParameter?.toJSON() || null
       };
     } catch (error) {
       logger.error(`Error getting user: ${error.message}`);
@@ -70,7 +70,7 @@ class UserService {
         throw new Error('User not found');
       }
 
-      const [params] = await TradingParameters.findOrCreate({
+      const [params] = await UserTradingParameters.findOrCreate({
         where: { userId: user.id },
         defaults: { userId: user.id, ...parameters }
       });
@@ -93,7 +93,7 @@ class UserService {
         return null;
       }
 
-      const params = await TradingParameters.findOne({
+      const params = await UserTradingParameters.findOne({
         where: { userId: user.id }
       });
 
@@ -113,7 +113,7 @@ class UserService {
         throw new Error('User not found');
       }
 
-      const params = await TradingParameters.findOne({
+      const params = await UserTradingParameters.findOne({
         where: { userId: user.id }
       });
 
@@ -146,7 +146,7 @@ class UserService {
   async getAllUsers(limit = 100, offset = 0) {
     try {
       const users = await User.findAll({
-        include: [TradingParameters],
+        include: [UserTradingParameters],
         limit,
         offset,
         order: [['updatedAt', 'DESC']]
@@ -154,7 +154,7 @@ class UserService {
 
       return users.map(u => ({
         user: u.toJSON(),
-        params: u.TradingParameter?.toJSON() || null
+        params: u.UserTradingParameter?.toJSON() || null
       }));
     } catch (error) {
       logger.error(`Error getting users: ${error.message}`);

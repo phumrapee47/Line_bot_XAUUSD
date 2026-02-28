@@ -1,55 +1,51 @@
 const express = require('express');
 const router = express.Router();
 const logger = require('../utils/logger');
+const { 
+  User, 
+  UserTradingPair, 
+  TradingPair, 
+  UserNotificationPreferences, 
+  UserTradingParameters 
+} = require('../models');
 
-// Database disabled for development - return mock data
-
-// Get all available trading pairs
+/**
+ * GET /api/trading-pairs
+ * Get all available trading pairs
+ */
 router.get('/trading-pairs', async (req, res) => {
   try {
-    const pairs = [
-      { id: 1, symbol: 'XAUUSD', name: 'Gold/USD', modelAvailable: true },
-      { id: 2, symbol: 'EURUSD', name: 'EUR/USD', modelAvailable: true },
-      { id: 3, symbol: 'GBPUSD', name: 'GBP/USD', modelAvailable: true }
-    ];
+    const pairs = await TradingPair.findAll({
+      where: { isActive: true }
+    });
+    
+    // Fallback if no pairs in DB yet
+    if (pairs.length === 0) {
+      return res.json({
+        success: true,
+        data: [
+          { id: 1, pairCode: 'XAUUSD', pairName: 'Gold/USD', assetType: 'commodity', modelAvailable: true }
+        ]
+      });
+    }
+
     res.json({
       success: true,
       data: pairs
     });
   } catch (error) {
-    logger.error('Error fetching trading pairs:', error);
+    logger.error('Error fetching trading pairs:', error.message);
     res.status(500).json({
       success: false,
-      error: 'Database disabled in development mode'
+      error: error.message
     });
   }
 });
 
-// Get user settings - stub response (database disabled)
-router.get('/users/:userId', async (req, res) => {
-  res.status(503).json({
-    success: false,
-    error: 'Database disabled in development mode - Telegram/LINE notifications ready'
-  });
-});
-
-// Save user settings - stub response (database disabled)
-router.post('/users/:userId/settings', async (req, res) => {
-  res.status(503).json({
-    success: false,
-    error: 'Database disabled in development mode'
-  });
-});
-
-// Reset user settings - stub response (database disabled)
-router.post('/users/:userId/settings/reset', async (req, res) => {
-  res.status(503).json({
-    success: false,
-    error: 'Database disabled in development mode'
-  });
-});
-
-module.exports = router;
+/**
+ * GET /api/users/:userId
+ * Get user settings including pairs, notifications and parameters
+ */
 router.get('/users/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -75,7 +71,7 @@ router.get('/users/:userId', async (req, res) => {
       data: user
     });
   } catch (error) {
-    logger.error('Error fetching user settings:', error);
+    logger.error(`Error fetching user settings for ${req.params.userId}:`, error.message);
     res.status(500).json({
       success: false,
       error: error.message
@@ -83,7 +79,10 @@ router.get('/users/:userId', async (req, res) => {
   }
 });
 
-// Save all user settings (pairs, preferences, parameters)
+/**
+ * POST /api/users/:userId/settings
+ * Save all user settings (pairs, preferences, parameters)
+ */
 router.post('/users/:userId/settings', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -96,7 +95,7 @@ router.post('/users/:userId/settings', async (req, res) => {
     if (!user) {
       user = await User.create({
         lineUserId: userId,
-        firstName: 'User',
+        displayName: 'User',
         isActive: true
       });
     }
@@ -112,9 +111,9 @@ router.post('/users/:userId/settings', async (req, res) => {
       for (const pair of tradingPairs) {
         await UserTradingPair.create({
           userId: user.id,
-          tradingPairId: pair.tradingPairId,
-          buyThreshold: pair.buyThreshold || 50,
-          sellThreshold: pair.sellThreshold || 50,
+          pairId: pair.tradingPairId || pair.pairId,
+          buyThreshold: pair.buyThreshold || 0.50,
+          sellThreshold: pair.sellThreshold || 0.50,
           tpMultiplier: pair.tpMultiplier || null,
           slMultiplier: pair.slMultiplier || null
         });
@@ -125,17 +124,7 @@ router.post('/users/:userId/settings', async (req, res) => {
     if (notificationPreferences) {
       const [prefs] = await UserNotificationPreferences.findOrCreate({
         where: { userId: user.id },
-        defaults: {
-          userId: user.id,
-          lineEnabled: true,
-          telegramEnabled: false,
-          buySignalsEnabled: true,
-          sellSignalsEnabled: true,
-          quietHoursEnabled: false,
-          quietHourStart: '22:00',
-          quietHourEnd: '06:00',
-          frequency: 'instant'
-        }
+        defaults: { userId: user.id }
       });
 
       await prefs.update({
@@ -154,15 +143,7 @@ router.post('/users/:userId/settings', async (req, res) => {
     if (tradingParameters) {
       const [params] = await UserTradingParameters.findOrCreate({
         where: { userId: user.id },
-        defaults: {
-          userId: user.id,
-          rsiPeriod: 14,
-          smaShort: 20,
-          smaLong: 50,
-          atrPeriod: 7,
-          rsiWeight: 0.3,
-          smaWeight: 0.2
-        }
+        defaults: { userId: user.id }
       });
 
       await params.update({
@@ -171,7 +152,10 @@ router.post('/users/:userId/settings', async (req, res) => {
         smaLong: tradingParameters.smaLong || 50,
         atrPeriod: tradingParameters.atrPeriod || 7,
         rsiWeight: tradingParameters.rsiWeight || 0.3,
-        smaWeight: tradingParameters.smaWeight || 0.2
+        smaWeight: tradingParameters.smaWeight || 0.2,
+        tpMultiplier: tradingParameters.tpMultiplier || 2.0,
+        slMultiplier: tradingParameters.slMultiplier || 1.0,
+        historyPeriod: tradingParameters.historyPeriod || '60d'
       });
     }
 
@@ -190,7 +174,7 @@ router.post('/users/:userId/settings', async (req, res) => {
       data: updatedUser
     });
   } catch (error) {
-    logger.error('Error saving user settings:', error);
+    logger.error(`Error saving settings for ${req.params.userId}:`, error.message);
     res.status(500).json({
       success: false,
       error: error.message
@@ -198,7 +182,10 @@ router.post('/users/:userId/settings', async (req, res) => {
   }
 });
 
-// Reset user settings to defaults
+/**
+ * POST /api/users/:userId/settings/reset
+ * Reset user settings to defaults
+ */
 router.post('/users/:userId/settings/reset', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -242,7 +229,9 @@ router.post('/users/:userId/settings/reset', async (req, res) => {
         smaLong: 50,
         atrPeriod: 7,
         rsiWeight: 0.3,
-        smaWeight: 0.2
+        smaWeight: 0.2,
+        tpMultiplier: 2.0,
+        slMultiplier: 1.0
       },
       { where: { userId: user.id } }
     );
@@ -262,7 +251,7 @@ router.post('/users/:userId/settings/reset', async (req, res) => {
       data: updatedUser
     });
   } catch (error) {
-    logger.error('Error resetting user settings:', error);
+    logger.error(`Error resetting settings for ${req.params.userId}:`, error.message);
     res.status(500).json({
       success: false,
       error: error.message

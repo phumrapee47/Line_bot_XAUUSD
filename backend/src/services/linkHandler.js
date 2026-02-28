@@ -1,4 +1,4 @@
-const { User } = require('../models');
+const { User, TelegramSubscriber } = require('../models');
 const { Op } = require('sequelize');
 const crypto = require('crypto');
 const logger = require('../utils/logger');
