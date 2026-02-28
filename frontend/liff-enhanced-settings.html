@@ -68,7 +68,8 @@
             <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-lg">
                 <button v-for="tab in tabs" :key="tab" @click="activeTab = tab"
                     :class="`flex-1 py-3 px-4 font-semibold transition ${activeTab === tab ? 'tab-active' : 'text-gray-500 hover:text-gray-700'}`">
-                    <span v-if="tab === 'pairs'">📊 คู่เงิน</span>
+                    <span v-if="tab === 'pairs'">📊 คู่เงิน <small
+                            class="bg-amber-100 text-amber-700 px-1 rounded text-[10px] ml-1">SOON</small></span>
                     <span v-else-if="tab === 'notifications'">🔔 การแจ้งเตือน</span>
                     <span v-else-if="tab === 'parameters'">⚙️ พารามิเตอร์</span>
                     <span v-else-if="tab === 'telegram'">🔗 Telegram</span>
@@ -77,56 +78,53 @@
 
             <!-- Tab 1: Trading Pairs Selection -->
             <div v-if="activeTab === 'pairs'" class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">📊 เลือกคู่เงินที่ต้องการติดตาม</h2>
-
-                <div v-if="availablePairs.length === 0" class="text-center py-8 text-gray-500">
-                    <p>ไม่มีคู่เงินที่พร้อมใช้</p>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">📊 เลือกคู่เงินที่ต้องการติดตาม</h2>
+                    <span
+                        class="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-1 rounded-full border border-amber-200">
+                        🚧 กำลังพัฒนา
+                    </span>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div v-for="pair in availablePairs" :key="pair.id"
-                        class="border border-gray-300 rounded-lg p-4 hover:shadow-md transition">
-                        <div class="flex items-start gap-3">
-                            <input type="checkbox" :id="`pair-${pair.id}`" v-model="selectedPairs" :value="pair.id"
-                                class="mt-1 w-5 h-5 accent-green-500">
-                            <label :for="`pair-${pair.id}`" class="flex-1 cursor-pointer">
-                                <div class="font-semibold text-gray-800">{{ pair.pairCode }}</div>
-                                <div class="text-sm text-gray-600">{{ pair.pairName }}</div>
-                                <div class="text-xs text-gray-500 mt-1">
-                                    <span class="bg-blue-100 text-blue-700 px-2 py-1 rounded">{{ pair.assetType
-                                        }}</span>
-                                </div>
-                            </label>
-                            <div v-if="isSelected(pair.id)" class="text-green-500 font-bold">✓</div>
+                <div class="relative">
+                    <!-- Under Development Overlay -->
+                    <div
+                        class="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center rounded-xl text-center p-6 border-2 border-dashed border-gray-200">
+                        <div class="bg-amber-500 text-white p-3 rounded-full mb-4 shadow-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
                         </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-1">ฟีเจอร์นี้กำลังอยู่ระหว่างการพัฒนา</h3>
+                        <p class="text-sm text-gray-600 max-w-xs">ระบบกำลังทดสอบความแม่นยำของ AI สำหรับคู่เงินอื่นๆ
+                            อดใจรออีกนิดเพื่อประสิทธิภาพการเทรดที่ดีที่สุดสำหรับคุณ</p>
+                    </div>
 
-                        <!-- Per-pair settings (show when pair is selected) -->
-                        <div v-if="isSelected(pair.id)" class="mt-4 pt-4 border-t border-gray-200 space-y-3">
-                            <div>
-                                <label class="text-sm font-semibold text-gray-700">Buy Threshold: <span
-                                        class="text-green-600">{{ getPairSettings(pair.id).buyThreshold
-                                        }}</span></label>
-                                <input v-model.number="getPairSettings(pair.id).buyThreshold" type="range" min="0"
-                                    max="100" step="1" class="w-full">
-                                <p class="text-xs text-gray-500">ระหว่าง 0-100 (เปอร์เซ็นต์)</p>
-                            </div>
+                    <div v-if="availablePairs.length === 0" class="text-center py-8 text-gray-500">
+                        <p>ไม่มีคู่เงินที่พร้อมใช้</p>
+                    </div>
 
-                            <div>
-                                <label class="text-sm font-semibold text-gray-700">Sell Threshold: <span
-                                        class="text-red-600">{{ getPairSettings(pair.id).sellThreshold }}</span></label>
-                                <input v-model.number="getPairSettings(pair.id).sellThreshold" type="range" min="0"
-                                    max="100" step="1" class="w-full">
-                                <p class="text-xs text-gray-500">ระหว่าง 0-100 (เปอร์เซ็นต์)</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 opacity-40 grayscale">
+                        <div v-for="pair in availablePairs" :key="pair.id"
+                            class="border border-gray-300 rounded-lg p-4">
+                            <div class="flex items-start gap-3">
+                                <input type="checkbox" :id="`pair-${pair.id}`" v-model="selectedPairs" :value="pair.id"
+                                    disabled class="mt-1 w-5 h-5 accent-green-500">
+                                <label :for="`pair-${pair.id}`" class="flex-1">
+                                    <div class="font-semibold text-gray-800">{{ pair.pairCode }}</div>
+                                    <div class="text-sm text-gray-600">{{ pair.pairName }}</div>
+                                </label>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Summary -->
-                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-                    <p class="text-sm text-blue-700">
-                        <strong>✓ เลือกแล้ว:</strong>
-                        <span class="font-bold">{{ selectedPairs.length }} / {{ availablePairs.length }}</span> คู่เงิน
+                <div class="bg-gray-50 border-l-4 border-gray-300 p-4 rounded opacity-50">
+                    <p class="text-sm text-gray-600">
+                        * ฟีเจอร์การสลับคู่เงินจะเปิดให้คุณใช้งานเร็วๆ นี้
                     </p>
                 </div>
             </div>
