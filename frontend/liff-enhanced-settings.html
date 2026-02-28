@@ -29,7 +29,7 @@
         <div v-if="loading" class="flex items-center justify-center h-screen">
             <div class="text-center">
                 <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
-                <p class="text-gray-600">กำลังโหลด...</p>
+                <p class="text-gray-600">{{ loadingStatus }}</p>
             </div>
         </div>
 
@@ -454,7 +454,9 @@
                     pollTimer: null,
 
                     // UI States
+                    // UI States
                     loading: true,
+                    loadingStatus: 'กำลังเริ่มระบบ...',
                     saving: false,
                     message: { text: '', type: '' }
                 };
@@ -462,49 +464,71 @@
 
             mounted() {
                 this.initLiff();
+
+                // Safety timeout: If still loading after 15 seconds, something is wrong
+                setTimeout(() => {
+                    if (this.loading) {
+                        console.error('Loading timeout reached');
+                        this.loadingStatus = 'การโหลดใช้เวลานานเกินไป...';
+                        this.loading = false;
+                        this.showMessage('การเชื่อมต่อล่าช้า กรุณารีเฟรชหน้าจอใหม่', 'error');
+                    }
+                }, 15000);
             },
 
             methods: {
                 getBackendUrl() {
-                    // Support both production and development
-                    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                        return 'http://localhost:3000';
-                    }
-                    // In production, extract backend URL from environment or parent domain
-                    return `https://${window.location.hostname}`;
+                    const url = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                        ? 'http://localhost:3000'
+                        : `https://${window.location.hostname}`;
+                    console.log('Backend URL:', url);
+                    return url;
                 },
 
                 async initLiff() {
+                    console.log('Starting initLiff...');
                     try {
+                        this.loadingStatus = 'กำลังดึงค่ากำหนดระบบ...';
                         const configUrl = `${this.getBackendUrl()}/api/liff/config`;
+                        console.log('Fetching config from:', configUrl);
+
                         const configResponse = await fetch(configUrl);
+                        if (!configResponse.ok) throw new Error(`HTTP error! status: ${configResponse.status}`);
                         const configData = await configResponse.json();
 
                         if (!configData.success) {
                             throw new Error('Failed to get LIFF configuration');
                         }
 
+                        this.loadingStatus = 'กำลังเชื่อมต่อ LINE...';
                         const liffId = configData.liffId;
+                        console.log('Initializing LIFF with ID:', liffId);
                         await liff.init({ liffId });
 
                         if (!liff.isLoggedIn()) {
+                            console.log('Not logged in, redirecting...');
                             liff.login();
                             return;
                         }
 
+                        this.loadingStatus = 'กำลังดึงโปรไฟล์ผู้ใช้...';
                         const profile = await liff.getProfile();
                         this.userId = profile.userId;
+                        console.log('User ID:', this.userId);
 
                         await this.loadAllSettings();
                     } catch (error) {
-                        console.error('Error:', error);
+                        console.error('LIFF Init Error:', error);
                         this.showMessage(`Error initializing LIFF: ${error.message}`, 'error');
+                        this.loadingStatus = `เกิดข้อผิดพลาด: ${error.message}`;
                         this.loading = false;
                     }
                 },
 
                 async loadAllSettings() {
+                    console.log('Starting loadAllSettings...');
                     try {
+                        this.loadingStatus = 'กำลังโหลดคู่เงิน...';
                         // Load available trading pairs
                         const pairsResponse = await fetch(`${this.getBackendUrl()}/api/trading-pairs`);
                         const pairsData = await pairsResponse.json();
@@ -512,41 +536,53 @@
                             this.availablePairs = pairsData.data;
                         }
 
+                        this.loadingStatus = 'กำลังโหลดข้อมูลผู้ใช้...';
                         // Load user's selected pairs and settings
-                        const userResponse = await fetch(`${this.getBackendUrl()}/api/users/${this.userId}`);
+                        const userUrl = `${this.getBackendUrl()}/api/users/${this.userId}`;
+                        console.log('Fetching user settings from:', userUrl);
+                        const userResponse = await fetch(userUrl);
+
+                        if (userResponse.status === 404) {
+                            console.log('User not found, this might be a new user');
+                            this.loadingStatus = 'ยินดีต้อนรับผู้ใช้ใหม่';
+                            return;
+                        }
+
                         const userData = await userResponse.json();
                         if (userData.success) {
                             const user = userData.data;
+                            console.log('Loaded user data:', user);
 
                             // Load trading pairs for this user
-                            if (user.userTradingPairs) {
-                                this.selectedPairs = user.userTradingPairs.map(p => p.tradingPairId);
-                                user.userTradingPairs.forEach(pair => {
-                                    this.pairSettings[pair.tradingPairId] = {
-                                        buyThreshold: pair.buyThreshold || 50,
-                                        sellThreshold: pair.sellThreshold || 50
+                            if (user.UserTradingPairs) {
+                                this.selectedPairs = user.UserTradingPairs.map(p => p.pairId);
+                                user.UserTradingPairs.forEach(pair => {
+                                    this.pairSettings[pair.pairId] = {
+                                        // Convert from 0.xx to percentage (if stored as decimal)
+                                        buyThreshold: pair.buyThreshold > 1 ? pair.buyThreshold : Math.round(pair.buyThreshold * 100),
+                                        sellThreshold: pair.sellThreshold > 1 ? pair.sellThreshold : Math.round(pair.sellThreshold * 100)
                                     };
                                 });
                             }
 
                             // Load notification preferences
-                            if (user.userNotificationPreferences) {
-                                const prefs = user.userNotificationPreferences;
+                            if (user.UserNotificationPreference) {
+                                const prefs = user.UserNotificationPreference;
                                 this.notifications = {
-                                    lineEnabled: prefs.lineEnabled !== false,
-                                    telegramEnabled: prefs.telegramEnabled !== false,
-                                    buySignals: prefs.buySignalsEnabled !== false,
-                                    sellSignals: prefs.sellSignalsEnabled !== false,
+                                    lineEnabled: prefs.notifyLine !== false,
+                                    telegramEnabled: prefs.notifyTelegram !== false,
+                                    buySignals: prefs.sendBuySignals !== false,
+                                    sellSignals: prefs.sendSellSignals !== false,
                                     quietHoursEnabled: prefs.quietHoursEnabled || false,
-                                    quietHourStart: prefs.quietHourStart || '22:00',
-                                    quietHourEnd: prefs.quietHourEnd || '06:00',
-                                    frequency: prefs.frequency || 'instant'
+                                    quietHourStart: prefs.quietHoursStart || '22:00',
+                                    quietHourEnd: prefs.quietHoursEnd || '06:00',
+                                    frequency: prefs.alertFrequency || 'instant'
                                 };
                             }
 
                             // Load trading parameters
-                            if (user.userTradingParameters) {
-                                const params = user.userTradingParameters;
+                            if (user.UserTradingParameter) {
+                                const params = user.UserTradingParameter;
                                 this.params = {
                                     rsiPeriod: params.rsiPeriod || 14,
                                     smaShort: params.smaShort || 20,
@@ -560,8 +596,10 @@
                             }
                         }
                     } catch (error) {
+                        console.error('Load Settings Error:', error);
                         this.showMessage(`ไม่สามารถโหลดการตั้งค่า: ${error.message}`, 'error');
                     } finally {
+                        this.loadingStatus = 'ทำความเรียบร้อย...';
                         this.loading = false;
                         await this.fetchTelegramStatus();
                     }
