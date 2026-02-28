@@ -14,6 +14,7 @@ const {
  * Get all available trading pairs
  */
 router.get('/trading-pairs', async (req, res) => {
+  logger.info('Fetching trading pairs...');
   try {
     const pairs = await TradingPair.findAll({
       where: { isActive: true }
@@ -29,6 +30,7 @@ router.get('/trading-pairs', async (req, res) => {
       });
     }
 
+    logger.info(`Returning ${pairs.length} pairs`);
     res.json({
       success: true,
       data: pairs
@@ -47,8 +49,9 @@ router.get('/trading-pairs', async (req, res) => {
  * Get user settings including pairs, notifications and parameters
  */
 router.get('/users/:userId', async (req, res) => {
+  const { userId } = req.params;
+  logger.info(`Fetching settings for user: ${userId}`);
   try {
-    const { userId } = req.params;
 
     const user = await User.findOne({
       where: { lineUserId: userId },
@@ -66,6 +69,7 @@ router.get('/users/:userId', async (req, res) => {
       });
     }
 
+    logger.info(`Settings found for user: ${userId}`);
     res.json({
       success: true,
       data: user
