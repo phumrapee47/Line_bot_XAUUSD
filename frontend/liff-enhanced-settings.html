@@ -26,10 +26,27 @@
 <body class="bg-gray-50">
     <div id="app" class="min-h-screen" v-cloak>
         <!-- Loading State -->
-        <div v-if="loading" class="flex items-center justify-center h-screen">
-            <div class="text-center">
-                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
-                <p class="text-gray-600">{{ loadingStatus }}</p>
+        <div v-if="loading" class="flex items-center justify-center h-screen bg-white">
+            <div class="text-center px-6 max-w-sm">
+                <div v-if="!loadingError"
+                    class="animate-spin rounded-full h-16 w-16 border-b-4 border-green-500 mx-auto mb-6"></div>
+                <div v-else class="text-5xl mb-6">⚠️</div>
+
+                <h3 class="text-xl font-bold text-gray-800 mb-2">
+                    {{ loadingError ? 'เกิดข้อผิดพลาดในการโหลด' : 'กำลังเตรียมความพร้อม' }}
+                </h3>
+                <p class="text-gray-600 mb-8">{{ loadingStatus }}</p>
+
+                <div v-if="loadingError" class="space-y-4">
+                    <button @click="retryLoading"
+                        class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition transform active:scale-95">
+                        🔄 ลองใหม่อีกครั้ง (Retry)
+                    </button>
+                    <p class="text-xs text-gray-500">หากยังคงค้างอยู่ที่เดิม โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ตของคุณ
+                    </p>
+                </div>
+                <div v-else class="text-xs text-green-600 font-medium">กำลังปรับปรุงประสิทธิภาพการเชื่อมต่อของคุณ...
+                </div>
             </div>
         </div>
 
@@ -123,7 +140,7 @@
                     <h3 class="font-semibold text-gray-700 mb-3">📲 ช่องทางการแจ้งเตือน</h3>
                     <div class="space-y-3">
                         <div class="flex items-center gap-3">
-                            <input type="checkbox" id="line-enabled" v-model="notifications.lineEnabled"
+                            <input type="checkbox" id="line-enabled" v-model="notifications.notifyLine"
                                 class="w-5 h-5 accent-green-500">
                             <label for="line-enabled" class="flex-1 cursor-pointer font-semibold text-gray-700">
                                 📱 LINE Message
@@ -131,7 +148,7 @@
                         </div>
 
                         <div class="flex items-center gap-3">
-                            <input type="checkbox" id="telegram-enabled" v-model="notifications.telegramEnabled"
+                            <input type="checkbox" id="telegram-enabled" v-model="notifications.notifyTelegram"
                                 class="w-5 h-5 accent-green-500">
                             <label for="telegram-enabled" class="flex-1 cursor-pointer font-semibold text-gray-700">
                                 🔵 Telegram Message
@@ -145,7 +162,7 @@
                     <h3 class="font-semibold text-gray-700 mb-3">📈 ประเภทสัญญาณ</h3>
                     <div class="space-y-3">
                         <div class="flex items-center gap-3">
-                            <input type="checkbox" id="buy-signals" v-model="notifications.buySignals"
+                            <input type="checkbox" id="buy-signals" v-model="notifications.sendBuySignals"
                                 class="w-5 h-5 accent-green-500">
                             <label for="buy-signals" class="flex-1 cursor-pointer font-semibold text-gray-700">
                                 🟢 BUY Signals
@@ -153,7 +170,7 @@
                         </div>
 
                         <div class="flex items-center gap-3">
-                            <input type="checkbox" id="sell-signals" v-model="notifications.sellSignals"
+                            <input type="checkbox" id="sell-signals" v-model="notifications.sendSellSignals"
                                 class="w-5 h-5 accent-green-500">
                             <label for="sell-signals" class="flex-1 cursor-pointer font-semibold text-gray-700">
                                 🔴 SELL Signals
@@ -176,15 +193,15 @@
 
                         <div v-if="notifications.quietHoursEnabled" class="ml-8 space-y-3">
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">เพิ่มเข้า (Start
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">เวลาเริ่ม (Start
                                     Time)</label>
-                                <input v-model="notifications.quietHourStart" type="time"
+                                <input v-model="notifications.quietHoursStart" type="time"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                             </div>
                             <div>
-                                <label class="block text-sm font-semibold text-gray-700 mb-1">เพิ่มออก (End
+                                <label class="block text-sm font-semibold text-gray-700 mb-1">เวลาสิ้นสุด (End
                                     Time)</label>
-                                <input v-model="notifications.quietHourEnd" type="time"
+                                <input v-model="notifications.quietHoursEnd" type="time"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                             </div>
                             <p class="text-xs text-gray-600">ในช่วงเวลานี้ จะไม่ได้รับการแจ้งเตือน</p>
@@ -195,7 +212,7 @@
                 <!-- Notification Frequency -->
                 <div>
                     <h3 class="font-semibold text-gray-700 mb-3">⏱️ ความถี่การแจ้งเตือน</h3>
-                    <select v-model="notifications.frequency"
+                    <select v-model="notifications.alertFrequency"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                         <option value="instant">🔴 ทันที (Instant)</option>
                         <option value="hourly">🟡 รายชั่วโมง (Hourly)</option>
@@ -423,14 +440,14 @@
 
                     // Notifications
                     notifications: {
-                        lineEnabled: true,
-                        telegramEnabled: true,
-                        buySignals: true,
-                        sellSignals: true,
+                        notifyLine: true,
+                        notifyTelegram: true,
+                        sendBuySignals: true,
+                        sendSellSignals: true,
                         quietHoursEnabled: false,
-                        quietHourStart: '22:00',
-                        quietHourEnd: '06:00',
-                        frequency: 'instant'
+                        quietHoursStart: '22:00',
+                        quietHoursEnd: '06:00',
+                        alertFrequency: 'instant'
                     },
 
                     // Technical Parameters
@@ -454,9 +471,9 @@
                     pollTimer: null,
 
                     // UI States
-                    // UI States
                     loading: true,
                     loadingStatus: 'กำลังเริ่มระบบ...',
+                    loadingError: false,
                     saving: false,
                     message: { text: '', type: '' }
                 };
@@ -464,35 +481,47 @@
 
             mounted() {
                 this.initLiff();
-
-                // Safety timeout: If still loading after 15 seconds, something is wrong
-                setTimeout(() => {
-                    if (this.loading) {
-                        console.error('Loading timeout reached');
-                        this.loadingStatus = 'การโหลดใช้เวลานานเกินไป...';
-                        this.loading = false;
-                        this.showMessage('การเชื่อมต่อล่าช้า กรุณารีเฟรชหน้าจอใหม่', 'error');
-                    }
-                }, 15000);
             },
 
             methods: {
+                /**
+                 * Fetch with timeout helper
+                 */
+                async fetchWithTimeout(resource, options = {}) {
+                    const { timeout = 10000 } = options;
+                    const controller = new AbortController();
+                    const id = setTimeout(() => controller.abort(), timeout);
+
+                    try {
+                        const response = await fetch(resource, {
+                            ...options,
+                            signal: controller.signal
+                        });
+                        clearTimeout(id);
+                        return response;
+                    } catch (error) {
+                        clearTimeout(id);
+                        throw error;
+                    }
+                },
+
+                retryLoading() {
+                    window.location.reload();
+                },
+
                 getBackendUrl() {
                     const url = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                         ? 'http://localhost:3000'
                         : `https://${window.location.hostname}`;
-                    console.log('Backend URL:', url);
                     return url;
                 },
 
                 async initLiff() {
-                    console.log('Starting initLiff...');
                     try {
                         this.loadingStatus = 'กำลังดึงค่ากำหนดระบบ...';
                         const configUrl = `${this.getBackendUrl()}/api/liff/config`;
-                        console.log('Fetching config from:', configUrl);
 
-                        const configResponse = await fetch(configUrl);
+                        const configResponse = await this.fetchWithTimeout(configUrl, { timeout: 8000 });
                         if (!configResponse.ok) throw new Error(`HTTP error! status: ${configResponse.status}`);
                         const configData = await configResponse.json();
 
@@ -500,65 +529,56 @@
                             throw new Error('Failed to get LIFF configuration');
                         }
 
-                        this.loadingStatus = 'กำลังเชื่อมต่อ LINE...';
+                        this.loadingStatus = 'กำลังเชื่อมต่อกับ LINE...';
                         const liffId = configData.liffId;
-                        console.log('Initializing LIFF with ID:', liffId);
                         await liff.init({ liffId });
 
                         if (!liff.isLoggedIn()) {
-                            console.log('Not logged in, redirecting...');
                             liff.login();
                             return;
                         }
 
-                        this.loadingStatus = 'กำลังดึงโปรไฟล์ผู้ใช้...';
+                        this.loadingStatus = 'กำลังดึงข้อมูลโปรไฟล์...';
                         const profile = await liff.getProfile();
                         this.userId = profile.userId;
-                        console.log('User ID:', this.userId);
 
                         await this.loadAllSettings();
                     } catch (error) {
                         console.error('LIFF Init Error:', error);
-                        this.showMessage(`Error initializing LIFF: ${error.message}`, 'error');
-                        this.loadingStatus = `เกิดข้อผิดพลาด: ${error.message}`;
-                        this.loading = false;
+                        this.loadingError = true;
+                        this.loadingStatus = `ไม่สามารถเชื่อมต่อระบบได้ (${error.name === 'AbortError' ? 'หมดเวลาการรอ' : error.message})`;
                     }
                 },
 
                 async loadAllSettings() {
-                    console.log('Starting loadAllSettings...');
                     try {
-                        this.loadingStatus = 'กำลังโหลดคู่เงิน...';
-                        // Load available trading pairs
-                        const pairsResponse = await fetch(`${this.getBackendUrl()}/api/trading-pairs`);
+                        this.loadingStatus = 'กำลังโหลดข้อมูลคู่เงิน...';
+                        const pairsResponse = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/trading-pairs`, { timeout: 8000 });
                         const pairsData = await pairsResponse.json();
                         if (pairsData.success) {
                             this.availablePairs = pairsData.data;
                         }
 
-                        this.loadingStatus = 'กำลังโหลดข้อมูลผู้ใช้...';
-                        // Load user's selected pairs and settings
+                        this.loadingStatus = 'ต้องการการตอบสนองจากเซิร์ฟเวอร์...';
                         const userUrl = `${this.getBackendUrl()}/api/users/${this.userId}`;
-                        console.log('Fetching user settings from:', userUrl);
-                        const userResponse = await fetch(userUrl);
+                        const userResponse = await this.fetchWithTimeout(userUrl, { timeout: 8000 });
 
                         if (userResponse.status === 404) {
-                            console.log('User not found, this might be a new user');
-                            this.loadingStatus = 'ยินดีต้อนรับผู้ใช้ใหม่';
+                            console.log('User not found, initial setup');
+                            this.loadingStatus = 'ยินดีต้อนรับผู้ใช้งานใหม่';
+                            this.loading = false;
                             return;
                         }
 
                         const userData = await userResponse.json();
                         if (userData.success) {
                             const user = userData.data;
-                            console.log('Loaded user data:', user);
 
                             // Load trading pairs for this user
                             if (user.UserTradingPairs) {
                                 this.selectedPairs = user.UserTradingPairs.map(p => p.pairId);
                                 user.UserTradingPairs.forEach(pair => {
                                     this.pairSettings[pair.pairId] = {
-                                        // Convert from 0.xx to percentage (if stored as decimal)
                                         buyThreshold: pair.buyThreshold > 1 ? pair.buyThreshold : Math.round(pair.buyThreshold * 100),
                                         sellThreshold: pair.sellThreshold > 1 ? pair.sellThreshold : Math.round(pair.sellThreshold * 100)
                                     };
@@ -569,14 +589,14 @@
                             if (user.UserNotificationPreference) {
                                 const prefs = user.UserNotificationPreference;
                                 this.notifications = {
-                                    lineEnabled: prefs.notifyLine !== false,
-                                    telegramEnabled: prefs.notifyTelegram !== false,
-                                    buySignals: prefs.sendBuySignals !== false,
-                                    sellSignals: prefs.sendSellSignals !== false,
+                                    notifyLine: prefs.notifyLine !== false,
+                                    notifyTelegram: prefs.notifyTelegram !== false,
+                                    sendBuySignals: prefs.sendBuySignals !== false,
+                                    sendSellSignals: prefs.sendSellSignals !== false,
                                     quietHoursEnabled: prefs.quietHoursEnabled || false,
-                                    quietHourStart: prefs.quietHoursStart || '22:00',
-                                    quietHourEnd: prefs.quietHoursEnd || '06:00',
-                                    frequency: prefs.alertFrequency || 'instant'
+                                    quietHoursStart: prefs.quietHoursStart || '22:00',
+                                    quietHoursEnd: prefs.quietHoursEnd || '06:00',
+                                    alertFrequency: prefs.alertFrequency || 'instant'
                                 };
                             }
 
@@ -597,17 +617,19 @@
                         }
                     } catch (error) {
                         console.error('Load Settings Error:', error);
-                        this.showMessage(`ไม่สามารถโหลดการตั้งค่า: ${error.message}`, 'error');
+                        this.loadingError = true;
+                        this.loadingStatus = `ไม่พบข้อมูลการตั้งค่า (${error.name === 'AbortError' ? 'เซิร์ฟเวอร์ตอบสนองช้า' : error.message})`;
                     } finally {
-                        this.loadingStatus = 'ทำความเรียบร้อย...';
-                        this.loading = false;
-                        await this.fetchTelegramStatus();
+                        if (!this.loadingError) {
+                            this.loading = false;
+                        }
+                        await this.fetchTelegramStatus().catch(e => console.error('Telegram status error:', e));
                     }
                 },
 
                 async fetchTelegramStatus() {
                     try {
-                        const response = await fetch(`${this.getBackendUrl()}/api/telegram/link-status/${this.userId}`);
+                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/telegram/link-status/${this.userId}`, { timeout: 8000 });
                         const data = await response.json();
                         if (data.success) {
                             this.telegramStatus = data.data;
@@ -628,11 +650,11 @@
                 async generateLinkCode() {
                     this.generating = true;
                     try {
-                        const response = await fetch(`${this.getBackendUrl()}/api/telegram/generate-link-code`, {
+                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/telegram/generate-link-code`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ lineUserId: this.userId })
-                        });
+                        }, { timeout: 8000 });
                         const data = await response.json();
                         if (data.success) {
                             this.linkData = data.data;
@@ -680,11 +702,11 @@
                     if (!confirm('ต้องการยกเลิกการเชื่อมต่อ Telegram?')) return;
 
                     try {
-                        const response = await fetch(`${this.getBackendUrl()}/api/telegram/unlink`, {
+                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/telegram/unlink`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ lineUserId: this.userId })
-                        });
+                        }, { timeout: 8000 });
                         const data = await response.json();
                         if (data.success) {
                             this.telegramStatus = { linked: false, telegramUsername: '' };
@@ -719,7 +741,7 @@
                         }));
 
                         // Save all settings in one request
-                        const response = await fetch(`${this.getBackendUrl()}/api/users/${this.userId}/settings`, {
+                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/users/${this.userId}/settings`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -727,7 +749,7 @@
                                 notificationPreferences: this.notifications,
                                 tradingParameters: this.params
                             })
-                        });
+                        }, { timeout: 10000 });
 
                         const data = await response.json();
 
@@ -748,10 +770,10 @@
 
                     this.saving = true;
                     try {
-                        const response = await fetch(`${this.getBackendUrl()}/api/users/${this.userId}/settings/reset`, {
+                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/users/${this.userId}/settings/reset`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' }
-                        });
+                        }, { timeout: 10000 });
 
                         const data = await response.json();
 

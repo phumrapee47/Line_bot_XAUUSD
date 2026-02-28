@@ -26,10 +26,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// Initialize database on startup (non-blocking - app continues without DB if it fails)
-initDatabase().catch(error => {
-  logger.warn(`Database initialization issue: ${error.message}`);
-  // Continue running - Telegram and LINE will work without database
+// Initialize database on startup (non-blocking)
+// We start listening immediately so Render/Health checks succeed
+initDatabase().then(async (success) => {
+  if (success) {
+    logger.info('Database ready, system fully functional');
+    
+    // Run initial analysis after DB is ready (non-blocking)
+    setTimeout(async () => {
+      logger.info('Running initial startup signal check...');
+      await tradingSignal.processSignal().catch(e => logger.error(`Startup signal check failed: ${e.message}`));
+    }, 5000); // Wait 5 seconds to let things settle
+  } else {
+    logger.warn('Database not ready, some features limited');
+  }
+}).catch(error => {
+  logger.error(`Database initialization error: ${error.message}`);
 });
 
 // Register health check routes
@@ -115,16 +127,13 @@ app.get('*', (req, res) => {
 });
 
 // Start server
-app.listen(config.server.port, async () => {
+app.listen(config.server.port, () => {
   logger.info(`🚀 Server started on port ${config.server.port}`);
   
   // Send startup message to both LINE and Telegram
   const startupMsg = '🚀 Gold Trading System Started!';
-  await lineNotifier.sendMessage(startupMsg);
-  await telegramNotifier.sendMessage(startupMsg);
-
-  // Run immediately on startup
-  await tradingSignal.processSignal();
+  lineNotifier.sendMessage(startupMsg).catch(e => logger.error(`Error sending LINE startup message: ${e.message}`));
+  telegramNotifier.sendMessage(startupMsg).catch(e => logger.error(`Error sending Telegram startup message: ${e.message}`));
 
   // Schedule cron job
   cron.schedule(config.scheduler.cronExpression, async () => {
