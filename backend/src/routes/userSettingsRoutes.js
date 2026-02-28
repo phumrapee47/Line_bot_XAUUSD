@@ -128,14 +128,14 @@ router.post('/users/:userId/settings', async (req, res) => {
       });
 
       await prefs.update({
-        lineEnabled: notificationPreferences.lineEnabled !== false,
-        telegramEnabled: notificationPreferences.telegramEnabled !== false,
-        buySignalsEnabled: notificationPreferences.buySignals !== false,
-        sellSignalsEnabled: notificationPreferences.sellSignals !== false,
+        notifyLine: notificationPreferences.lineEnabled !== false,
+        notifyTelegram: notificationPreferences.telegramEnabled !== false,
+        sendBuySignals: notificationPreferences.buySignals !== false,
+        sendSellSignals: notificationPreferences.sellSignals !== false,
         quietHoursEnabled: notificationPreferences.quietHoursEnabled || false,
-        quietHourStart: notificationPreferences.quietHourStart || '22:00',
-        quietHourEnd: notificationPreferences.quietHourEnd || '06:00',
-        frequency: notificationPreferences.frequency || 'instant'
+        quietHoursStart: notificationPreferences.quietHourStart || '22:00',
+        quietHoursEnd: notificationPreferences.quietHourEnd || '06:00',
+        alertFrequency: notificationPreferences.frequency || 'instant'
       });
     }
 
@@ -174,7 +174,7 @@ router.post('/users/:userId/settings', async (req, res) => {
       data: updatedUser
     });
   } catch (error) {
-    logger.error(`Error saving settings for ${req.params.userId}:`, error.message);
+    logger.error(`Error saving settings for ${req.params.userId}: ${error.stack}`);
     res.status(500).json({
       success: false,
       error: error.message
@@ -209,14 +209,14 @@ router.post('/users/:userId/settings/reset', async (req, res) => {
     // Reset notification preferences to defaults
     await UserNotificationPreferences.update(
       {
-        lineEnabled: true,
-        telegramEnabled: false,
-        buySignalsEnabled: true,
-        sellSignalsEnabled: true,
+        notifyLine: true,
+        notifyTelegram: false,
+        sendBuySignals: true,
+        sendSellSignals: true,
         quietHoursEnabled: false,
-        quietHourStart: '22:00',
-        quietHourEnd: '06:00',
-        frequency: 'instant'
+        quietHoursStart: '22:00',
+        quietHoursEnd: '06:00',
+        alertFrequency: 'instant'
       },
       { where: { userId: user.id } }
     );

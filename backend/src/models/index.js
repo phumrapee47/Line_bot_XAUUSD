@@ -6,6 +6,23 @@ const UserNotificationPreferences = require('./UserNotificationPreferences');
 const UserTradingParameters = require('./UserTradingParameters');
 const TelegramSubscriber = require('./TelegramSubscriber');
 
+// --- Associations ---
+
+// User <-> UserTradingPair <-> TradingPair
+User.hasMany(UserTradingPair, { foreignKey: 'userId', onDelete: 'CASCADE' });
+UserTradingPair.belongsTo(User, { foreignKey: 'userId' });
+
+TradingPair.hasMany(UserTradingPair, { foreignKey: 'pairId', onDelete: 'CASCADE' });
+UserTradingPair.belongsTo(TradingPair, { foreignKey: 'pairId' });
+
+// User <-> UserNotificationPreferences
+User.hasOne(UserNotificationPreferences, { foreignKey: 'userId', onDelete: 'CASCADE' });
+UserNotificationPreferences.belongsTo(User, { foreignKey: 'userId' });
+
+// User <-> UserTradingParameters
+User.hasOne(UserTradingParameters, { foreignKey: 'userId', onDelete: 'CASCADE' });
+UserTradingParameters.belongsTo(User, { foreignKey: 'userId' });
+
 // Export models
 module.exports = {
   sequelize,

@@ -267,8 +267,8 @@ router.post('/generate-link-code', async (req, res) => {
       data: { code, expiresAt }
     });
   } catch (error) {
-    logger.error(`Generate link code error: ${error.message}`);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    logger.error(`Generate link code error for ${req.body.lineUserId}: ${error.stack}`);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -287,8 +287,8 @@ router.get('/link-status/:lineUserId', async (req, res) => {
       data: status
     });
   } catch (error) {
-    logger.error(`Get link status error: ${error.message}`);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    logger.error(`Get link status error for ${req.params.lineUserId}: ${error.stack}`);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
