@@ -70,6 +70,37 @@ class LineNotifier {
     }
   }
 
+  async sendBroadcastMessage(message) {
+    try {
+      const response = await axios.post(
+        'https://api.line.me/v2/bot/message/broadcast',
+        {
+          messages: [
+            {
+              type: 'text',
+              text: message
+            }
+          ]
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.token}`
+          }
+        }
+      );
+
+      if (response.status === 200) {
+        logger.info('LINE broadcast message sent to all users');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      logger.error(`Error sending LINE broadcast message: ${error.message}`);
+      return false;
+    }
+  }
+
   async sendToMultipleUsers(message, userIds) {
     try {
       if (!userIds || userIds.length === 0) {
