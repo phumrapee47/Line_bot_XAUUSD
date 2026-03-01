@@ -82,7 +82,8 @@ class UserSettingsService {
         pictureUrl: userData.pictureUrl,
         email: userData.email,
         language: userData.language || 'th',
-        timezone: userData.timezone || 'Asia/Bangkok'
+        timezone: userData.timezone || 'Asia/Bangkok',
+        subscriptionType: 'unsubscription' // Default to free tier
       });
 
       // Create default notification preferences
@@ -92,7 +93,7 @@ class UserSettingsService {
         notifyTelegram: false
       });
 
-      // Create default trading parameters
+      // Create default trading parameters (System Defaults)
       await UserTradingParameters.create({
         userId: user.id
       });
@@ -149,20 +150,8 @@ class UserSettingsService {
    */
   async updateTradingParameters(userId, parameters) {
     try {
-      const [numUpdated, updatedRecords] = await UserTradingParameters.update(
-        parameters,
-        { where: { userId }, returning: true }
-      );
-
-      if (numUpdated === 0) {
-        const created = await UserTradingParameters.create({
-          userId,
-          ...parameters
-        });
-        return created;
-      }
-
-      return updatedRecords[0];
+      logger.warn(`🚫 User ${userId} attempted to update trading parameters. This action is now restricted.`);
+      throw new Error('การปรับแต่งพารามิเตอร์ถูกระงับ (Paramiter editing is disabled)');
     } catch (error) {
       logger.error(`Error updating trading parameters: ${error.message}`);
       throw error;
@@ -174,6 +163,18 @@ class UserSettingsService {
    */
   async updateUserTradingPair(userId, pairId, settings) {
     try {
+      const user = await User.findByPk(userId);
+      const pair = await TradingPair.findByPk(pairId);
+
+      if (!user || !pair) {
+        throw new Error('User or Trading Pair not found');
+      }
+
+      // Enforce subscription rules
+      if (user.subscriptionType === 'unsubscription' && pair.pairCode !== 'XAUUSD') {
+        throw new Error('Free tier users can only select XAUUSD');
+      }
+
       const [record, created] = await UserTradingPair.findOrCreate({
         where: { userId, pairId },
         defaults: { ...settings, isSelected: true }
@@ -196,6 +197,15 @@ class UserSettingsService {
    */
   async toggleUserTradingPair(userId, pairCode, isSelected) {
     try {
+      if (!isSelected) {
+        // Allow removing any pair
+      } else {
+        const user = await User.findByPk(userId);
+        if (user && user.subscriptionType === 'unsubscription' && pairCode !== 'XAUUSD') {
+          throw new Error('Free tier users can only select XAUUSD');
+        }
+      }
+
       const pair = await TradingPair.findOne({
         where: { pairCode }
       });
@@ -219,10 +229,6 @@ class UserSettingsService {
       throw error;
     }
   }
-
-  /**
-   * Link Telegram to existing user
-   */
   async linkTelegram(userId, telegramData) {
     try {
       const user = await User.findByPk(userId);
@@ -287,7 +293,7 @@ class UserSettingsService {
       const notifyColumn = channel === 'telegram' ? 'notify_telegram' : 'notify_line';
 
       let query = `
-        SELECT DISTINCT u.id, u.telegram_user_id, u.line_user_id, u.display_name
+        SELECT DISTINCT u.id, u.telegram_user_id, u.line_user_id, u.display_name, u.subscription_type
         FROM users u
         JOIN user_notification_preferences np ON u.id = np.user_id
         WHERE u.is_active = true AND np.${notifyColumn} = true
@@ -301,6 +307,11 @@ class UserSettingsService {
             WHERE tp.pair_code = '${pairCode}' AND utp.is_selected = true
           )
         `;
+        
+        // Enforce: Free users ONLY get XAUUSD
+        if (pairCode !== 'XAUUSD') {
+          query += ` AND u.subscription_type = 'subscription' `;
+        }
       }
 
       const users = await sequelize.query(query, { type: sequelize.QueryTypes.SELECT });

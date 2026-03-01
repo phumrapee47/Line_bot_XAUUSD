@@ -12,6 +12,9 @@ import sys
 import os
 import sqlite3
 
+def logger_info(msg):
+    print(f"INFO: {msg}", file=sys.stderr)
+
 # Default parameters
 DEFAULT_PARAMS = {
     "rsi_period": 14,
@@ -108,20 +111,24 @@ def calculate_rsi(data, period=14):
     rsi = 100 - (100 / (1 + rs))
     return rsi
 
-def get_technical_prediction(line_user_id="default"):
-    """Get technical prediction based on user parameters from database"""
-    # Try to load from database first, fallback to JSON file
-    params = load_user_parameters_from_db(line_user_id)
-    if params == DEFAULT_PARAMS:
-        # Fallback to JSON if database doesn't have user
-        params_json = load_user_parameters(line_user_id)
-        if params_json != DEFAULT_PARAMS:
-            params = params_json
+def get_technical_prediction(pair_code="XAUUSD"):
+    """Get technical prediction based on system-wide optimized parameters"""
+    # Use fixed system parameters (User editing is now disabled)
+    params = DEFAULT_PARAMS.copy()
     
     try:
-        # Fetch gold data
-        gold = yf.Ticker("GC=F")
-        df = gold.history(period=params['history_period'], interval="1d")
+        # Map pair_code to yfinance symbol
+        symbol_map = {
+            "XAUUSD": "GC=F",
+            "BTCUSD": "BTC-USD",
+        }
+        symbol = symbol_map.get(pair_code, "GC=F")
+        
+        logger_info(f"Analyzing {pair_code} using symbol {symbol}")
+
+        # Fetch data
+        ticker = yf.Ticker(symbol)
+        df = ticker.history(period=params['history_period'], interval="1d")
         
         if df.empty or len(df) < params['rsi_period']:
             return {

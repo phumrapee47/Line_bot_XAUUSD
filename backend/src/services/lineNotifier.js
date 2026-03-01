@@ -70,66 +70,41 @@ class LineNotifier {
     }
   }
 
-  async sendBroadcastMessage(message) {
+  async sendToMultipleUsers(message, userIds) {
     try {
-      const response = await axios.post(
-        'https://api.line.me/v2/bot/message/broadcast',
-        {
-          messages: [
-            {
-              type: 'text',
-              text: message
-            }
-          ]
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.token}`
-          }
-        }
+      if (!userIds || userIds.length === 0) {
+        return [];
+      }
+
+      logger.info(`📤 Sending LINE message to ${userIds.length} users...`);
+      
+      const promises = userIds.map(userId =>
+        this.sendPushMessage(message, userId).catch(err => {
+          logger.error(`Failed to send LINE message to ${userId}: ${err.message}`);
+          return false;
+        })
       );
 
-      if (response.status === 200) {
-        logger.info('LINE broadcast message sent to all users');
-        return true;
-      }
-      return false;
+      const results = await Promise.all(promises);
+      const successCount = results.filter(r => r).length;
+      logger.info(`✅ Sent successfully to ${successCount}/${userIds.length} LINE users`);
+      return results;
     } catch (error) {
-      logger.error(`Error sending LINE broadcast message: ${error.message}`);
-      return false;
+      logger.error(`Error sending to multiple LINE users: ${error.message}`);
+      return [];
     }
   }
 
-  async sendTradingSignal(signalData) {
+  async sendTradingSignal(signalData, userIds = null) {
     // Safety check: Prevent sending $0.00 signals
     if (signalData.price === 0 || signalData.price === undefined || signalData.price === null) {
       logger.error('❌ BLOCKED: Cannot send signal - price is $0.00 or undefined');
-      logger.error(`   Signal: ${signalData.signal}, TP: ${signalData.tp}, SL: ${signalData.sl}`);
-      logger.error(`   This indicates a critical Python script error or network issue`);
-      logger.error(`   Full signal data: ${JSON.stringify(signalData)}`);
       return false;
     }
 
-    if (signalData.tp === 0 || signalData.tp === undefined || signalData.tp === null) {
-      logger.error('❌ BLOCKED: Cannot send signal - TP is $0.00 or undefined');
-      logger.error(`   Price: $${signalData.price}, SL: ${signalData.sl}`);
-      return false;
-    }
-
-    if (signalData.sl === 0 || signalData.sl === undefined || signalData.sl === null) {
-      logger.error('❌ BLOCKED: Cannot send signal - SL is $0.00 or undefined');
-      logger.error(`   Price: $${signalData.price}, TP: ${signalData.tp}`);
-      return false;
-    }
-
-    // Validate confidence
-    if (typeof signalData.confidence !== 'number' || signalData.confidence < 0 || signalData.confidence > 1) {
-      logger.warn(`⚠️ WARNING: Invalid confidence value: ${signalData.confidence}`);
-    }
-
+    const pairName = signalData.pairName || (signalData.pairCode === 'XAUUSD' ? 'Gold' : signalData.pairCode);
     const message = `
-🔔 Gold Trading Signal 🔔
+🔔 ${pairName} Trading Signal 🔔
 ━━━━━━━━━━━━━━━━━━
 Signal: ${signalData.signal}
 Confidence: ${(signalData.confidence * 100).toFixed(2)}%
@@ -145,8 +120,11 @@ Confidence: ${(signalData.confidence * 100).toFixed(2)}%
 ━━━━━━━━━━━━━━━━━━
     `.trim();
 
-    logger.info(`✓ Sending valid trading signal - Price: $${signalData.price.toFixed(2)}`);
-    return await this.sendMessage(message);
+    if (userIds && userIds.length > 0) {
+      return await this.sendToMultipleUsers(message, userIds);
+    } else {
+      return await this.sendMessage(message);
+    }
   }
 }
 

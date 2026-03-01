@@ -43,19 +43,24 @@ class PythonBridge {
     });
   }
 
-  async getTechnicalAnalysis() {
+  async getTechnicalAnalysis(pairCode = 'XAUUSD') {
     try {
-      // Path works both locally and on Render
-      // Local: backend/src/models -> ../../../ml-models = ml-models
-      // Render: /opt/render/project/src/backend/src/models -> ../../../ml-models = /opt/render/project/src/ml-models
-      const scriptPath = path.join(__dirname, '../../../ml-models', 'technical_model.py');
-      logger.info(`Running technical analysis script: ${scriptPath}`);
-      logger.info(`Python environment PATH: ${process.env.PATH}`);
-      const result = await this.runPythonScript(scriptPath);
-      logger.info(`Technical analysis completed: prob=${result.probability}, price=${result.price}, tp=${result.tp}, sl=${result.sl}`);
+      // Mapping pairCode to model script
+      const modelMapping = {
+        'XAUUSD': 'technical_model.py',
+        // 'BTCUSD': 'crypto_model.py', // Future models
+      };
+
+      const scriptName = modelMapping[pairCode] || 'technical_model.py';
+      const scriptPath = path.join(__dirname, '../../../ml-models', scriptName);
+      
+      logger.info(`Running technical analysis script for ${pairCode}: ${scriptPath}`);
+      
+      const result = await this.runPythonScript(scriptPath, [pairCode]);
+      logger.info(`Technical analysis completed for ${pairCode}: prob=${result.probability}, price=${result.price}`);
       return result;
     } catch (error) {
-      logger.error(`Technical analysis failed: ${error.message}`);
+      logger.error(`Technical analysis failed for ${pairCode}: ${error.message}`);
       throw error;
     }
   }

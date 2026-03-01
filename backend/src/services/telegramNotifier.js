@@ -128,25 +128,16 @@ class TelegramNotifier {
     };
   }
 
-  async sendTradingSignal(signalData) {
+  async sendTradingSignal(signalData, userIds = null) {
     // Safety check: Prevent sending $0.00 signals (same as LINE)
     if (signalData.price === 0 || signalData.price === undefined || signalData.price === null) {
       logger.error('❌ TELEGRAM BLOCKED: Cannot send signal - price is $0.00 or undefined');
       return false;
     }
 
-    if (signalData.tp === 0 || signalData.tp === undefined || signalData.tp === null) {
-      logger.error('❌ TELEGRAM BLOCKED: Cannot send signal - TP is $0.00 or undefined');
-      return false;
-    }
-
-    if (signalData.sl === 0 || signalData.sl === undefined || signalData.sl === null) {
-      logger.error('❌ TELEGRAM BLOCKED: Cannot send signal - SL is $0.00 or undefined');
-      return false;
-    }
-
+    const pairName = signalData.pairName || (signalData.pairCode === 'XAUUSD' ? 'Gold' : signalData.pairCode);
     const message = `
-🔔 <b>Gold Trading Signal</b> 🔔
+🔔 <b>${pairName} Trading Signal</b> 🔔
 ━━━━━━━━━━━━━━━━━━
 Signal: ${signalData.signal}
 Confidence: ${(signalData.confidence * 100).toFixed(2)}%
@@ -161,8 +152,11 @@ Confidence: ${(signalData.confidence * 100).toFixed(2)}%
 ⏰ Time: ${new Date(signalData.timestamp).toLocaleString('th-TH')}
 ━━━━━━━━━━━━━━━━━━`;
 
-    logger.info(`✓ Sending valid Telegram trading signal - Price: $${signalData.price.toFixed(2)}`);
-    return await this.sendMessage(message);
+    if (userIds && userIds.length > 0) {
+      return await this.sendToMultipleUsers(message, userIds);
+    } else {
+      return await this.sendMessage(message);
+    }
   }
 
   /**

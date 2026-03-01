@@ -28,7 +28,7 @@ router.get('/config', (req, res) => {
   }
 });
 
-// Get user profile with parameters
+// Get user profile with parameters and subscription status
 router.get('/user/profile', async (req, res) => {
   try {
     const { userId } = req.query;
@@ -43,9 +43,13 @@ router.get('/user/profile', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Include subscription info
     res.json({
       success: true,
-      data: userData
+      data: {
+        ...userData,
+        subscriptionType: userData.user.subscriptionType || 'unsubscription'
+      }
     });
   } catch (error) {
     logger.error(`Error getting user profile: ${error.message}`);
@@ -56,61 +60,12 @@ router.get('/user/profile', async (req, res) => {
   }
 });
 
-// Get user parameters
-router.get('/parameters', async (req, res) => {
-  try {
-    const { userId } = req.query;
-    
-    if (!userId) {
-      return res.status(400).json({ error: 'userId is required' });
-    }
-
-    const params = await userService.getUserParameters(userId);
-    
-    if (!params) {
-      return res.status(404).json({ error: 'Parameters not found' });
-    }
-
-    res.json({
-      success: true,
-      data: params
-    });
-  } catch (error) {
-    logger.error(`Error getting parameters: ${error.message}`);
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
-  }
-});
-
-// Save user parameters
+// Save user parameters (Restricted)
 router.post('/parameters', async (req, res) => {
   try {
-    const { userId, parameters } = req.body;
-    
-    if (!userId || !parameters) {
-      return res.status(400).json({ error: 'userId and parameters are required' });
-    }
-
-    // Validate parameters
-    const validParams = {
-      rsiPeriod: parameters.rsi_period || parameters.rsiPeriod,
-      smaShort: parameters.sma_short || parameters.smaShort,
-      smaLong: parameters.sma_long || parameters.smaLong,
-      atrPeriod: parameters.atr_period || parameters.atrPeriod,
-      rsiWeight: parameters.rsi_weight || parameters.rsiWeight,
-      smaWeight: parameters.sma_weight || parameters.smaWeight,
-      tpMultiplier: parameters.tp_multiplier || parameters.tpMultiplier,
-      slMultiplier: parameters.sl_multiplier || parameters.slMultiplier,
-      historyPeriod: parameters.history_period || parameters.historyPeriod
-    };
-
-    const saved = await userService.updateUserParameters(userId, validParams);
-    res.json({
-      success: true,
-      data: saved,
-      message: 'Parameters updated successfully'
+    res.status(403).json({
+      success: false,
+      error: 'การปรับแต่งพารามิเตอร์ถูกระงับ (Parameter editing is restricted)'
     });
   } catch (error) {
     logger.error(`Error saving parameters: ${error.message}`);

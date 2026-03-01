@@ -32,132 +32,143 @@
         <!-- Main Content -->
         <div v-else class="max-w-2xl mx-auto p-4">
             <!-- Header -->
-            <div class="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg shadow-lg p-6 mb-6">
-                <h1 class="text-3xl font-bold">⚙️ ตั้งค่าพารามิเตอร์</h1>
-                <p class="text-green-100 mt-2">ปรับแต่งพารามิเตอร์การวิเคราะห์ทางเทคนิคตามความต้องการของคุณ</p>
+            <div class="bg-gradient-to-r from-indigo-600 to-blue-700 text-white rounded-lg shadow-lg p-6 mb-6">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h1 class="text-3xl font-bold">💎 Trading Settings</h1>
+                        <p class="text-indigo-100 mt-2">Manage your signal preferences and subscription</p>
+                    </div>
+                    <div
+                        class="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold border border-white/30">
+                        {{ subscriptionType === 'subscription' ? '👑 Premium' : '📁 Free Tier' }}
+                    </div>
+                </div>
             </div>
 
             <!-- Alert Messages -->
             <div v-if="message.text"
-                :class="`mb-4 p-4 rounded-lg ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`">
+                :class="`mb-4 p-4 rounded-lg flex items-center ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`">
+                <span class="mr-2">{{ message.type === 'success' ? '✅' : '⚠️' }}</span>
                 {{ message.text }}
             </div>
 
-            <!-- Parameter Form -->
-            <div class="bg-white rounded-lg shadow-md p-6 space-y-6">
+            <!-- Restricted Parameters Info -->
+            <div class="bg-amber-50 border-l-4 border-amber-400 p-4 mb-6 rounded shadow-sm">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <span class="text-amber-400">ℹ️</span>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-amber-700 font-medium">
+                            การปรับแต่งพารามิเตอร์ถูกย้ายไปยังระบบอัตโนมัติ
+                        </p>
+                        <p class="text-xs text-amber-600 mt-1">
+                            เพื่อความแม่นยำสูงสุด ระบบจะใช้ค่าที่เหมาะสมที่สุด (AI Optimized) แทนการตั้งค่าโดยผู้ใช้
+                        </p>
+                    </div>
+                </div>
+            </div>
 
+            <!-- Parameter Form (READ ONLY) -->
+            <div class="bg-white rounded-lg shadow-md p-6 space-y-6 opacity-75 pointer-events-none grayscale-[0.5]">
+                <div class="flex items-center justify-between border-b pb-2 mb-4">
+                    <h3 class="font-bold text-gray-800">📊 System Parameters (Locked)</h3>
+                </div>
                 <!-- RSI Period -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        RSI Period: <span class="text-green-600">{{ params.rsi_period }}</span> วัน
+                    <label class="block text-sm font-semibold text-gray-500 mb-2">
+                        RSI Period: <span class="text-gray-400">{{ params.rsi_period }}</span> วัน
                     </label>
-                    <input v-model.number="params.rsi_period" type="range" min="5" max="30" class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">ระหว่าง 5-30 (ค่าต่ำ = ไว ต่อการเปลี่ยนแปลง)</p>
+                    <input v-model.number="params.rsi_period" type="range" min="5" max="30"
+                        class="w-full cursor-not-allowed" disabled>
                 </div>
 
                 <!-- SMA Short -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        SMA ระยะสั้น: <span class="text-green-600">{{ params.sma_short }}</span> วัน
+                    <label class="block text-sm font-semibold text-gray-500 mb-2">
+                        SMA ระยะสั้น: <span class="text-gray-400">{{ params.sma_short }}</span> วัน
                     </label>
-                    <input v-model.number="params.sma_short" type="range" min="5" max="50" class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">ระหว่าง 5-50 วัน</p>
+                    <input v-model.number="params.sma_short" type="range" min="5" max="50"
+                        class="w-full cursor-not-allowed" disabled>
                 </div>
 
                 <!-- SMA Long -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        SMA ระยะยาว: <span class="text-green-600">{{ params.sma_long }}</span> วัน
+                    <label class="block text-sm font-semibold text-gray-500 mb-2">
+                        SMA ระยะยาว: <span class="text-gray-400">{{ params.sma_long }}</span> วัน
                     </label>
-                    <input v-model.number="params.sma_long" type="range" min="20" max="200" class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">ระหว่าง 20-200 วัน</p>
+                    <input v-model.number="params.sma_long" type="range" min="20" max="200"
+                        class="w-full cursor-not-allowed" disabled>
                 </div>
 
                 <!-- ATR Period -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        ATR Period: <span class="text-green-600">{{ params.atr_period }}</span> วัน
+                    <label class="block text-sm font-semibold text-gray-500 mb-2">
+                        ATR Period: <span class="text-gray-400">{{ params.atr_period }}</span> วัน
                     </label>
-                    <input v-model.number="params.atr_period" type="range" min="3" max="20" class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">ระหว่าง 3-20 วัน</p>
+                    <input v-model.number="params.atr_period" type="range" min="3" max="20"
+                        class="w-full cursor-not-allowed" disabled>
                 </div>
 
                 <!-- RSI Weight -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        น้ำหนัก RSI: <span class="text-green-600">{{ (params.rsi_weight * 100).toFixed(0) }}%</span>
+                    <label class="block text-sm font-semibold text-gray-500 mb-2">
+                        น้ำหนัก RSI: <span class="text-gray-400">{{ (params.rsi_weight * 100).toFixed(0) }}%</span>
                     </label>
-                    <input v-model.number="params.rsi_weight" type="range" min="0" max="1" step="0.05" class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">อิทธิพลของ RSI ต่อการตัดสินใจ</p>
+                    <input v-model.number="params.rsi_weight" type="range" min="0" max="1" step="0.05"
+                        class="w-full cursor-not-allowed" disabled>
                 </div>
 
                 <!-- SMA Weight -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        น้ำหนัก SMA: <span class="text-green-600">{{ (params.sma_weight * 100).toFixed(0) }}%</span>
+                    <label class="block text-sm font-semibold text-gray-500 mb-2">
+                        น้ำหนัก SMA: <span class="text-gray-400">{{ (params.sma_weight * 100).toFixed(0) }}%</span>
                     </label>
-                    <input v-model.number="params.sma_weight" type="range" min="0" max="1" step="0.05" class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">อิทธิพลของ SMA ต่อการตัดสินใจ</p>
+                    <input v-model.number="params.sma_weight" type="range" min="0" max="1" step="0.05"
+                        class="w-full cursor-not-allowed" disabled>
                 </div>
 
                 <!-- TP Multiplier -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        TP Multiplier: <span class="text-green-600">{{ params.tp_multiplier.toFixed(1) }}x ATR</span>
+                    <label class="block text-sm font-semibold text-gray-500 mb-2">
+                        TP Multiplier: <span class="text-gray-400">{{ params.tp_multiplier ?
+                            params.tp_multiplier.toFixed(1) : '2.0' }}x ATR</span>
                     </label>
                     <input v-model.number="params.tp_multiplier" type="range" min="0.5" max="5" step="0.1"
-                        class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">ระยะ Take Profit (0.5-5.0x ATR)</p>
+                        class="w-full cursor-not-allowed" disabled>
                 </div>
 
                 <!-- SL Multiplier -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        SL Multiplier: <span class="text-green-600">{{ params.sl_multiplier.toFixed(1) }}x ATR</span>
+                    <label class="block text-sm font-semibold text-gray-500 mb-2">
+                        SL Multiplier: <span class="text-gray-400">{{ params.sl_multiplier ?
+                            params.sl_multiplier.toFixed(1) : '1.0' }}x ATR</span>
                     </label>
                     <input v-model.number="params.sl_multiplier" type="range" min="0.3" max="3" step="0.1"
-                        class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">ระยะ Stop Loss (0.3-3.0x ATR)</p>
-                </div>
-
-                <!-- Info Box -->
-                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-                    <p class="text-sm text-blue-700">
-                        <strong>📊 Risk/Reward Ratio:</strong>
-                        <span class="font-bold">1 : {{ (params.tp_multiplier / params.sl_multiplier).toFixed(2)
-                            }}</span>
-                    </p>
-                    <p class="text-xs text-blue-600 mt-2">ยิ่งสูง = หวังกำไรมากขึ้น, ยิ่งต่ำ = เสี่ยงมากขึ้น</p>
+                        class="w-full cursor-not-allowed" disabled>
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="flex gap-4 mt-6">
-                <button @click="saveParameters" :disabled="saving"
-                    class="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition">
-                    <span v-if="!saving">💾 บันทึกการตั้งค่า</span>
-                    <span v-else>กำลังบันทึก...</span>
-                </button>
-
-                <button @click="resetToDefault" :disabled="saving"
-                    class="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition">
-                    🔄 รีเซ็ต
-                </button>
+            <!-- Action Buttons (Disabled) -->
+            <div class="mt-8 text-center p-4 border-t border-dashed border-gray-300">
+                <p class="text-sm text-gray-500 bg-gray-100 py-2 px-4 rounded-full inline-block">
+                    🔒 การตั้งค่าถูกล็อคโดยระบบ
+                </p>
             </div>
 
             <!-- Info Section -->
-            <div class="mt-6 bg-gray-100 rounded-lg p-4">
-                <h3 class="font-semibold text-gray-700 mb-2">💡 เคล็ดลับ</h3>
-                <ul class="text-sm text-gray-600 space-y-1">
-                    <li>✓ ค่า Period ต่ำ = ระบบไว (Aggressive Trading)</li>
-                    <li>✓ ค่า Period สูง = ระบบช้า (Conservative Trading)</li>
-                    <li>✓ TP/SL ที่ใหญ่ = รอสัญญาณที่ชัดเจน</li>
-                    <li>✓ ลองปรับเนื้อย ๆ แล้วทดสอบกับข้อมูลสด</li>
+            <div class="mt-6 bg-blue-50 rounded-lg p-4 border border-blue-100">
+                <h3 class="font-semibold text-blue-800 mb-2">🚀 ยกระดับการเทรด</h3>
+                <ul class="text-sm text-blue-700 space-y-2">
+                    <li v-if="subscriptionType !== 'subscription'">✓ รับ Signal BTCUSD และคู่อื่นๆ ได้ในเวอร์ชัน
+                        <b>Premium</b>
+                    </li>
+                    <li>✓ ระบบ AI จะปรับจูนค่าทางเทคนิคให้อัตโนมัติตลอด 24 ชม.</li>
                 </ul>
             </div>
 
-            <div class="text-center mt-8 text-xs text-gray-500">
-                <p>User ID: {{ userId }}</p>
+            <div class="text-center mt-8 text-xs text-gray-400 pb-8">
+                <p>User ID: {{ userId }} | Ver: 2.0.0</p>
             </div>
         </div>
     </div>
@@ -169,6 +180,7 @@
             data() {
                 return {
                     userId: null,
+                    subscriptionType: 'unsubscription',
                     params: {
                         rsi_period: 14,
                         sma_short: 20,
@@ -226,7 +238,8 @@
                         const data = await response.json();
 
                         if (data.success) {
-                            this.params = { ...this.params, ...data.data };
+                            this.params = { ...this.params, ...data.data.params };
+                            this.subscriptionType = data.data.subscriptionType || 'unsubscription';
                         }
                     } catch (error) {
                         this.showMessage(`ไม่สามารถโหลดการตั้งค่า: ${error.message}`, 'error');

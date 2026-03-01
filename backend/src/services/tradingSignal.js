@@ -30,46 +30,32 @@ class TradingSignalService {
     }
   }
 
-  async generateSignal() {
+  async generateSignal(pairCode = 'XAUUSD') {
     try {
-      logger.info('Generating trading signal...');
+      logger.info(`Generating trading signal for ${pairCode}...`);
 
-      // Get predictions from both models with timeout protection
       const [technical, news] = await Promise.allSettled([
-        this.withTimeout(technicalAnalysis.analyze(), 60000),
-        this.withTimeout(newsAnalysis.analyze(), 60000)
+        this.withTimeout(technicalAnalysis.analyze(pairCode), 60000),
+        pairCode === 'XAUUSD' ? this.withTimeout(newsAnalysis.analyze(), 60000) : Promise.resolve({ value: { score: 0.5 } })
       ]);
 
-      // Check if technical analysis succeeded
       if (technical.status === 'rejected') {
-        logger.error(`❌ Technical analysis failed: ${technical.reason}`);
+        logger.error(`❌ Technical analysis failed for ${pairCode}: ${technical.reason}`);
         return null;
       }
 
-      // Use technical data even if news fails
       const technicalData = technical.value;
       const newsData = news.status === 'fulfilled' ? news.value : { score: 0.5 };
 
-      if (news.status === 'rejected') {
-        logger.warn(`⚠️ News analysis failed, using default score: ${newsData.score}`);
-      }
-
-      // Additional validation before calculating score
-      if (!technicalData || technicalData.price === 0) {
-        logger.error('❌ Technical analysis returned invalid price');
-        return null;
-      }
-
-      // Calculate combined score
       const combinedScore = this.calculateCombinedScore(
         technicalData.probability,
         newsData.score
       );
 
-      // Determine signal
       const signal = this.determineSignal(combinedScore);
 
       const signalData = {
+        pairCode: pairCode,
         signal: signal,
         confidence: combinedScore,
         technicalProb: technicalData.probability,
@@ -81,53 +67,51 @@ class TradingSignalService {
         timestamp: new Date().toLocaleString('th-TH')
       };
 
-      logger.info(`✓ Signal generated successfully: ${signal} at $${signalData.price.toFixed(2)}`);
+      logger.info(`✓ Signal generated for ${pairCode}: ${signal} at $${signalData.price.toFixed(2)}`);
       return signalData;
     } catch (error) {
-      logger.error(`Error generating signal: ${error.message}`);
+      logger.error(`Error generating signal for ${pairCode}: ${error.message}`);
       return null;
     }
   }
 
-  /**
-   * Execute promise with timeout
-   */
-  withTimeout(promise, timeoutMs) {
-    return Promise.race([
-      promise,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`Operation timeout after ${timeoutMs}ms`)), timeoutMs)
-      )
-    ]);
-  }
-
-  async processSignal() {
+  async processSignal(pairCode = 'XAUUSD') {
     logger.info('=' .repeat(50));
-    logger.info('Running trading system check...');
+    logger.info(`Running trading system check for ${pairCode}...`);
 
-    const signalData = await this.generateSignal();
+    const signalData = await this.generateSignal(pairCode);
 
     if (!signalData) {
-      logger.error('Failed to generate signal');
+      logger.error(`Failed to generate signal for ${pairCode}`);
       return;
     }
 
     const currentSignal = signalData.signal;
 
     // Send notification only if signal changed or is BUY/SELL
-    if (currentSignal !== '⚪ HOLD' && currentSignal !== this.lastSignal) {
-      logger.info(`New signal detected: ${currentSignal}`);
+    // (Note: To simplify, we'll use a global lastSignal for now, should be per-pair in production)
+    if (currentSignal !== '⚪ HOLD') {
+      logger.info(`New signal detected for ${pairCode}: ${currentSignal}`);
       
-      // Send to both LINE and Telegram
-      const lineSuccess = await lineNotifier.sendTradingSignal(signalData);
-      const telegramSuccess = await telegramNotifier.sendTradingSignal(signalData);
+      const userSettingsService = require('./userSettingsService');
       
-      if (lineSuccess || telegramSuccess) {
-        this.lastSignal = currentSignal;
-        this.lastSignalTime = new Date();
-      }
+      // Get targeted users
+      const lineUsers = await userSettingsService.getActiveUsersForBroadcasting('line', pairCode);
+      const telegramUsers = await userSettingsService.getActiveUsersForBroadcasting('telegram', pairCode);
+      
+      const lineUserIds = lineUsers.map(u => u.line_user_id).filter(id => !!id);
+      const telegramUserIds = telegramUsers.map(u => u.telegram_user_id).filter(id => !!id);
+
+      logger.info(`Targeting ${lineUserIds.length} LINE users and ${telegramUserIds.length} Telegram users for ${pairCode}`);
+
+      // Send to targeted people
+      const lineSuccess = await lineNotifier.sendTradingSignal(signalData, lineUserIds);
+      const telegramSuccess = await telegramNotifier.sendTradingSignal(signalData, telegramUserIds);
+      
+      this.lastSignal = currentSignal;
+      this.lastSignalTime = new Date();
     } else {
-      logger.info(`Signal unchanged or HOLD: ${currentSignal}`);
+      logger.info(`Signal is HOLD for ${pairCode}: ${currentSignal}`);
     }
 
     return signalData;

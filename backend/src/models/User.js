@@ -64,6 +64,12 @@ const User = sequelize.define('User', {
     field: 'is_premium',
     defaultValue: false
   },
+  subscriptionType: {
+    type: DataTypes.STRING(20),
+    field: 'subscription_type',
+    defaultValue: 'unsubscription',
+    comment: 'subscription or unsubscription'
+  },
   // Telegram Linking
   linkCode: {
     type: DataTypes.STRING(10),

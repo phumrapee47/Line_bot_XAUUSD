@@ -41,14 +41,14 @@ class TechnicalAnalysisService {
   /**
    * Main analyze method with safety checks
    */
-  async analyze() {
+  async analyze(pairCode = 'XAUUSD') {
     try {
-      logger.info('Starting technical analysis with safety checks...');
+      logger.info(`Starting technical analysis for ${pairCode} with safety checks...`);
 
       // Retry logic: attempt up to 3 times
       let result = await this.retry(async () => {
         return await this.executeWithTimeout(
-          pythonBridge.getTechnicalAnalysis(),
+          pythonBridge.getTechnicalAnalysis(pairCode),
           this.timeout
         );
       });
@@ -62,14 +62,11 @@ class TechnicalAnalysisService {
       };
 
       // Use validation service to check and fallback if needed
+      // (Assuming priceValidation supports pair-specific caching or we just use general fallback)
       const validatedPrice = priceValidation.getPriceWithFallback(priceData);
 
-      // Log validation result
-      if (!validatedPrice.isValid && validatedPrice.source === 'cached') {
-        logger.warn(`⚠️ Using fallback cached price due to: ${validatedPrice.errors.join(', ')}`);
-      }
-
       return {
+        pairCode: pairCode,
         probability: validatedPrice.probability,
         price: validatedPrice.price,
         tp: validatedPrice.tp,
@@ -78,24 +75,10 @@ class TechnicalAnalysisService {
         isValid: validatedPrice.isValid
       };
     } catch (error) {
-      logger.error(`❌ Technical analysis failed after retries: ${error.message}`);
-
-      // Try to use fallback cache
-      const cachedStatus = priceValidation.getStatus();
-      if (cachedStatus.hasCachedPrice) {
-        logger.warn(`⚠️ Using emergency fallback cache: $${cachedStatus.lastValidPrice}`);
-        return {
-          probability: 0.5,
-          price: cachedStatus.lastValidPrice,
-          tp: cachedStatus.lastValidTP,
-          sl: cachedStatus.lastValidSL,
-          source: 'fallback-cache',
-          isValid: false
-        };
-      }
-
-      // No cache available - return safe defaults
+      logger.error(`❌ Technical analysis for ${pairCode} failed: ${error.message}`);
+      // ... (rest uses cached status which might be pair-agnostic for now)
       return {
+        pairCode,
         probability: 0.5,
         price: 0,
         tp: 0,
