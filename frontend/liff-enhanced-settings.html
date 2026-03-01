@@ -70,7 +70,6 @@
                     :class="`flex-1 py-3 px-4 font-semibold transition ${activeTab === tab ? 'tab-active' : 'text-gray-500 hover:text-gray-700'}`">
                     <span v-if="tab === 'pairs'">📊 คู่เงิน</span>
                     <span v-else-if="tab === 'notifications'">🔔 การแจ้งเตือน</span>
-                    <span v-else-if="tab === 'parameters'">⚙️ พารามิเตอร์</span>
                     <span v-else-if="tab === 'telegram'">🔗 Telegram</span>
                 </button>
             </div>
@@ -97,25 +96,7 @@
                             <div v-if="isSelected(pair.id)" class="text-green-500 font-bold">✓</div>
                         </div>
 
-                        <!-- Per-pair settings (show when pair is selected) -->
-                        <div v-if="isSelected(pair.id)" class="mt-4 pt-4 border-t border-gray-200 space-y-3"
-                            @click.stop>
-                            <div>
-                                <label class="text-sm font-semibold text-gray-700">Buy Threshold: <span
-                                        class="text-green-600">{{ getPairSettings(pair.id).buyThreshold
-                                        }}%</span></label>
-                                <input v-model.number="getPairSettings(pair.id).buyThreshold" type="range" min="0"
-                                    max="100" step="1" class="w-full">
-                            </div>
-
-                            <div>
-                                <label class="text-sm font-semibold text-gray-700">Sell Threshold: <span
-                                        class="text-red-600">{{ getPairSettings(pair.id).sellThreshold
-                                        }}%</span></label>
-                                <input v-model.number="getPairSettings(pair.id).sellThreshold" type="range" min="0"
-                                    max="100" step="1" class="w-full">
-                            </div>
-                        </div>
+                        <!-- Per-pair settings (REMOVED: thresholds now managed by AI) -->
                     </div>
                 </div>
 
@@ -219,104 +200,6 @@
                 </div>
             </div>
 
-            <!-- Tab 3: Technical Parameters -->
-            <div v-if="activeTab === 'parameters'" class="bg-white rounded-lg shadow-md p-6 space-y-6">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">⚙️ ตั้งค่าตัวบ่งชี้ทางเทคนิค</h2>
-
-                <!-- RSI Period -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        RSI Period: <span class="text-green-600">{{ params.rsiPeriod }}</span> วัน
-                    </label>
-                    <input v-model.number="params.rsiPeriod" type="range" min="5" max="30" class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">ระหว่าง 5-30 (ค่าต่ำ = ไว ต่อการเปลี่ยนแปลง)</p>
-                </div>
-
-                <!-- SMA Short -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        SMA ระยะสั้น: <span class="text-green-600">{{ params.smaShort }}</span> วัน
-                    </label>
-                    <input v-model.number="params.smaShort" type="range" min="5" max="50" class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">ระหว่าง 5-50 วัน</p>
-                </div>
-
-                <!-- SMA Long -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        SMA ระยะยาว: <span class="text-green-600">{{ params.smaLong }}</span> วัน
-                    </label>
-                    <input v-model.number="params.smaLong" type="range" min="20" max="200" class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">ระหว่าง 20-200 วัน</p>
-                </div>
-
-                <!-- ATR Period -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        ATR Period: <span class="text-green-600">{{ params.atrPeriod }}</span> วัน
-                    </label>
-                    <input v-model.number="params.atrPeriod" type="range" min="3" max="20" class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">ระหว่าง 3-20 วัน</p>
-                </div>
-
-                <!-- RSI Weight -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        น้ำหนัก RSI: <span class="text-green-600">{{ (params.rsiWeight * 100).toFixed(0) }}%</span>
-                    </label>
-                    <input v-model.number="params.rsiWeight" type="range" min="0" max="1" step="0.05" class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">อิทธิพลของ RSI ต่อการตัดสินใจ</p>
-                </div>
-
-                <!-- SMA Weight -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        น้ำหนัก SMA: <span class="text-green-600">{{ (params.smaWeight * 100).toFixed(0) }}%</span>
-                    </label>
-                    <input v-model.number="params.smaWeight" type="range" min="0" max="1" step="0.05" class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">อิทธิพลของ SMA ต่อการตัดสินใจ</p>
-                </div>
-
-                <!-- TP Multiplier -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        TP Multiplier: <span class="text-green-600">{{ params.tpMultiplier.toFixed(1) }}x ATR</span>
-                    </label>
-                    <input v-model.number="params.tpMultiplier" type="range" min="0.5" max="5" step="0.1"
-                        class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">ระยะ Take Profit (0.5-5.0x ATR)</p>
-                </div>
-
-                <!-- SL Multiplier -->
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">
-                        SL Multiplier: <span class="text-green-600">{{ params.slMultiplier.toFixed(1) }}x ATR</span>
-                    </label>
-                    <input v-model.number="params.slMultiplier" type="range" min="0.3" max="3" step="0.1"
-                        class="w-full">
-                    <p class="text-xs text-gray-500 mt-1">ระยะ Stop Loss (0.3-3.0x ATR)</p>
-                </div>
-
-                <!-- Info Box -->
-                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-                    <p class="text-sm text-blue-700">
-                        <strong>📊 Risk/Reward Ratio:</strong>
-                        <span class="font-bold">1 : {{ (params.tpMultiplier / params.slMultiplier).toFixed(2) }}</span>
-                    </p>
-                    <p class="text-xs text-blue-600 mt-2">ยิ่งสูง = หวังกำไรมากขึ้น, ยิ่งต่ำ = เสี่ยงมากขึ้น</p>
-                </div>
-
-                <!-- Tips -->
-                <div class="mt-6 bg-gray-100 rounded-lg p-4">
-                    <h3 class="font-semibold text-gray-700 mb-2">💡 เคล็ดลับ</h3>
-                    <ul class="text-sm text-gray-600 space-y-1">
-                        <li>✓ ค่า Period ต่ำ = ระบบไว (Aggressive Trading)</li>
-                        <li>✓ ค่า Period สูง = ระบบช้า (Conservative Trading)</li>
-                        <li>✓ TP/SL ที่ใหญ่ = รอสัญญาณที่ชัดเจน</li>
-                        <li>✓ ลองปรับเนื้อย ๆ แล้วทดสอบกับข้อมูลสด</li>
-                    </ul>
-                </div>
-            </div>
 
             <!-- Tab 4: Telegram Link -->
             <div v-if="activeTab === 'telegram'" class="bg-white rounded-lg shadow-md p-6 space-y-6">
@@ -405,10 +288,6 @@
                     <span v-else>กำลังบันทึก...</span>
                 </button>
 
-                <button @click="resetToDefault" :disabled="saving"
-                    class="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white font-bold py-3 rounded-lg transition">
-                    🔄 รีเซ็ต
-                </button>
             </div>
 
             <!-- Footer -->
@@ -426,7 +305,7 @@
             data() {
                 return {
                     activeTab: 'pairs',
-                    tabs: ['pairs', 'notifications', 'parameters', 'telegram'],
+                    tabs: ['pairs', 'notifications', 'telegram'],
                     userId: null,
                     backendUrl: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : `https://${window.location.hostname}`,
 
