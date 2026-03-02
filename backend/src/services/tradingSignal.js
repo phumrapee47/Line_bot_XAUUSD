@@ -11,6 +11,15 @@ class TradingSignalService {
     this.lastSignalTime = null;
   }
 
+  async withTimeout(promise, timeoutMs) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs)
+      )
+    ]);
+  }
+
   calculateCombinedScore(technicalProb, newsScore) {
     const combined = 
       config.models.technicalWeight * technicalProb +
@@ -108,6 +117,26 @@ class TradingSignalService {
       const lineSuccess = await lineNotifier.sendTradingSignal(signalData, lineUserIds);
       const telegramSuccess = await telegramNotifier.sendTradingSignal(signalData, telegramUserIds);
       
+      // Save signal to history
+      try {
+        const { TradingPair, TradingSignal } = require('../models');
+        const pair = await TradingPair.findOne({ where: { pairCode: pairCode } });
+        if (pair) {
+          await TradingSignal.create({
+            pairId: pair.id,
+            signal: currentSignal,
+            confidence: signalData.confidence,
+            price: signalData.price,
+            tp: signalData.tp,
+            sl: signalData.sl,
+            timestamp: new Date()
+          });
+          logger.info(`Signal saved to history for ${pairCode}`);
+        }
+      } catch (dbError) {
+        logger.error(`Error saving signal to DB: ${dbError.message}`);
+      }
+
       this.lastSignal = currentSignal;
       this.lastSignalTime = new Date();
     } else {

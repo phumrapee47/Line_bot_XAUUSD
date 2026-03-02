@@ -199,7 +199,7 @@ plt.tight_layout()
 # ============================================================================
 # Save plot to file instead of showing
 # ============================================================================
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 output_dir = project_root / 'backend' / 'data' / 'predictions'
 output_dir.mkdir(parents=True, exist_ok=True)
 

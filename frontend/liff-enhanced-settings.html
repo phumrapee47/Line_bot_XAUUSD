@@ -20,7 +20,17 @@
         .tab-active {
             @apply border-b-2 border-green-500 text-green-600;
         }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
     </style>
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 </head>
 
 <body class="bg-gray-50">
@@ -68,13 +78,151 @@
             <div class="flex border-b border-gray-200 mb-6 bg-white rounded-t-lg">
                 <button v-for="tab in tabs" :key="tab" @click="activeTab = tab"
                     :class="`flex-1 py-3 px-4 font-semibold transition ${activeTab === tab ? 'tab-active' : 'text-gray-500 hover:text-gray-700'}`">
-                    <span v-if="tab === 'pairs'">📊 คู่เงิน</span>
+                    <span v-if="tab === 'analysis'">🔭 วิเคราะห์</span>
+                    <span v-else-if="tab === 'pairs'">📊 คู่เงิน</span>
                     <span v-else-if="tab === 'notifications'">🔔 การแจ้งเตือน</span>
                     <span v-else-if="tab === 'telegram'">🔗 Telegram</span>
                 </button>
             </div>
 
-            <!-- Tab 1: Trading Pairs Selection -->
+            <!-- Tab 0: Analysis Results -->
+            <div v-if="activeTab === 'analysis'" class="space-y-6">
+                <!-- Pair Selection for Analysis -->
+                <div class="bg-white rounded-lg shadow-md p-4 flex gap-2 overflow-x-auto no-scrollbar">
+                    <button v-for="pair in analysisPairs" :key="pair.id" @click="selectAnalysisPair(pair)"
+                        :class="`px-4 py-2 rounded-full font-bold whitespace-nowrap transition ${selectedAnalysisPair?.id === pair.id ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`">
+                        {{ pair.pairCode }}
+                        <span v-if="isPairRestricted(pair)" class="ml-1 text-xs">🔒</span>
+                    </button>
+                </div>
+
+                <!-- Restricted Message if applicable -->
+                <div v-if="isPairRestricted(selectedAnalysisPair)"
+                    class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-lg">
+                    <div class="flex items-center">
+                        <span class="text-2xl mr-3">💎</span>
+                        <div>
+                            <h3 class="font-bold text-amber-800">ฟีเจอร์สำหรับสมาชิก Premium</h3>
+                            <p class="text-sm text-amber-700">คู่เงิน {{ selectedAnalysisPair?.pairCode }}
+                                เปิดให้ดูผลการวิเคราะห์เฉพาะสมาชิก Premium เท่านั้น</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else class="space-y-6">
+                    <!-- TradingView Chart Container -->
+                    <div class="bg-white rounded-lg shadow-md overflow-hidden aspect-video relative">
+                        <div id="tradingview_widget" class="w-full h-full"></div>
+                        <div v-if="!selectedAnalysisPair"
+                            class="absolute inset-0 flex items-center justify-center bg-gray-50 text-gray-400">
+                            โปรดเลือกคู่เงินเพื่อดูกราฟ
+                        </div>
+                    </div>
+
+                    <!-- Daily Analysis Section -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">📅 ผลการวิเคราะห์รายวัน (Gemini AI)</h2>
+
+                        <div v-if="dailyAnalysisLoading" class="text-center py-10">
+                            <div class="animate-pulse flex flex-col items-center">
+                                <div class="h-40 w-full bg-gray-200 rounded-lg mb-4"></div>
+                                <div class="h-4 w-3/4 bg-gray-200 rounded mb-2"></div>
+                                <div class="h-4 w-1/2 bg-gray-200 rounded"></div>
+                            </div>
+                        </div>
+
+                        <div v-else-if="dailyAnalysis" class="space-y-6">
+                            <!-- Analysis Images -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div v-if="dailyAnalysis.prediction_image" class="space-y-2">
+                                    <p class="text-sm font-semibold text-gray-600">📈 LSTM Price Prediction</p>
+                                    <img :src="`${backendUrl}/api/data/predictions/${dailyAnalysis.prediction_image}`"
+                                        class="w-full rounded-lg border border-gray-200 shadow-sm cursor-zoom-in"
+                                        @click="openImageModal(`${backendUrl}/api/data/predictions/${dailyAnalysis.prediction_image}`)">
+                                </div>
+                                <div v-if="dailyAnalysis.graph_image" class="space-y-2">
+                                    <p class="text-sm font-semibold text-gray-600">📊 Technical Charts (Daily)</p>
+                                    <img :src="`${backendUrl}/api/data/graphs/${dailyAnalysis.graph_image}`"
+                                        class="w-full rounded-lg border border-gray-200 shadow-sm cursor-zoom-in"
+                                        @click="openImageModal(`${backendUrl}/api/data/graphs/${dailyAnalysis.graph_image}`)">
+                                </div>
+                            </div>
+
+                            <!-- Gemini Text Analysis -->
+                            <div class="bg-green-50 rounded-lg p-5 border border-green-100">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <span class="text-xl">✨</span>
+                                    <h3 class="font-bold text-green-800">สรุปการวิเคราะห์โดย Gemini AI</h3>
+                                </div>
+                                <div class="text-gray-700 whitespace-pre-line leading-relaxed text-sm">
+                                    {{ dailyAnalysis.analysis }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-else
+                            class="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-lg">
+                            <p>ไม่มีข้อมูลการวิเคราะห์สำหรับคู่เงินนี้ในวันนี้</p>
+                        </div>
+                    </div>
+
+                    <!-- Signal History Section -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">📜 ประวัติสัญญาณวันนี้</h2>
+
+                        <div v-if="signalsLoading" class="space-y-3">
+                            <div v-for="i in 3" class="h-16 bg-gray-50 animate-pulse rounded-lg"></div>
+                        </div>
+
+                        <div v-else-if="signals && signals.length > 0" class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="text-xs text-gray-500 uppercase border-b">
+                                    <tr>
+                                        <th class="py-3 px-2">เวลา</th>
+                                        <th class="py-3 px-2">สัญญาณ</th>
+                                        <th class="py-3 px-2">ราคา</th>
+                                        <th class="py-3 px-2 text-right">Confidence</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y">
+                                    <tr v-for="sig in signals" :key="sig.id" class="hover:bg-gray-50 transition">
+                                        <td class="py-3 px-2 text-sm">
+                                            {{ formatTime(sig.timestamp) }}
+                                        </td>
+                                        <td class="py-3 px-2">
+                                            <span
+                                                :class="`px-2 py-1 rounded-md text-xs font-bold ${getSignalClass(sig.signal)}`">
+                                                {{ sig.signal }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 px-2 font-mono text-sm">${{ sig.price?.toFixed(2) }}</td>
+                                        <td class="py-3 px-2 text-right">
+                                            <div class="text-xs font-bold" :class="getConfidenceClass(sig.confidence)">
+                                                {{ (sig.confidence * 100).toFixed(1) }}%
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div v-else class="text-center py-8 text-gray-400">
+                            <p>ยังไม่มีสัญญาณสำหรับวันนี้</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Image Modal -->
+            <div v-if="modalImage"
+                class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-90"
+                @click="modalImage = null">
+                <div class="relative max-w-5xl w-full max-h-full">
+                    <img :src="modalImage" class="w-full h-auto object-contain rounded-lg shadow-2xl">
+                    <button class="absolute -top-10 right-0 text-white text-3xl font-bold">&times;</button>
+                </div>
+            </div>
+
             <div v-if="activeTab === 'pairs'" class="bg-white rounded-lg shadow-md p-6 mb-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">📊 เลือกคู่เงินที่ต้องการติดตาม</h2>
 
@@ -304,10 +452,21 @@
         createApp({
             data() {
                 return {
-                    activeTab: 'pairs',
-                    tabs: ['pairs', 'notifications', 'telegram'],
+                    activeTab: 'analysis',
+                    tabs: ['analysis', 'pairs', 'notifications', 'telegram'],
                     userId: null,
+                    subscriptionType: 'unsubscription',
                     backendUrl: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : `https://${window.location.hostname}`,
+
+                    // Analysis
+                    analysisPairs: [],
+                    selectedAnalysisPair: null,
+                    dailyAnalysis: null,
+                    dailyAnalysisLoading: false,
+                    signals: [],
+                    signalsLoading: false,
+                    tvWidget: null,
+                    modalImage: null,
 
                     // Trading Pairs
                     availablePairs: [],
@@ -433,6 +592,15 @@
                         const pairsData = await pairsResponse.json();
                         if (pairsData.success) {
                             this.availablePairs = pairsData.data;
+                            this.analysisPairs = [...pairsData.data];
+
+                            // Set default selection to XAUUSD if available
+                            const xauusd = this.analysisPairs.find(p => p.pairCode === 'XAUUSD');
+                            if (xauusd) {
+                                this.selectedAnalysisPair = xauusd;
+                            } else if (this.analysisPairs.length > 0) {
+                                this.selectedAnalysisPair = this.analysisPairs[0];
+                            }
                         }
 
                         this.loadingStatus = 'ต้องการการตอบสนองจากเซิร์ฟเวอร์...';
@@ -443,12 +611,18 @@
                             console.log('User not found, initial setup');
                             this.loadingStatus = 'ยินดีต้อนรับผู้ใช้งานใหม่';
                             this.loading = false;
+
+                            // Initialize analysis for new user
+                            if (this.selectedAnalysisPair) {
+                                this.selectAnalysisPair(this.selectedAnalysisPair);
+                            }
                             return;
                         }
 
                         const userData = await userResponse.json();
                         if (userData.success) {
                             const user = userData.data;
+                            this.subscriptionType = user.subscriptionType || 'unsubscription';
 
                             // Load trading pairs for this user
                             if (user.UserTradingPairs) {
@@ -475,21 +649,11 @@
                                     alertFrequency: prefs.alertFrequency || 'instant'
                                 };
                             }
+                        }
 
-                            // Load trading parameters
-                            if (user.UserTradingParameter) {
-                                const params = user.UserTradingParameter;
-                                this.params = {
-                                    rsiPeriod: params.rsiPeriod || 14,
-                                    smaShort: params.smaShort || 20,
-                                    smaLong: params.smaLong || 50,
-                                    atrPeriod: params.atrPeriod || 7,
-                                    rsiWeight: params.rsiWeight || 0.3,
-                                    smaWeight: params.smaWeight || 0.2,
-                                    tpMultiplier: params.tpMultiplier || 2.0,
-                                    slMultiplier: params.slMultiplier || 1.0
-                                };
-                            }
+                        // After loading user data (subscription type), refresh analysis
+                        if (this.selectedAnalysisPair) {
+                            this.selectAnalysisPair(this.selectedAnalysisPair);
                         }
                     } catch (error) {
                         console.error('Load Settings Error:', error);
@@ -503,6 +667,119 @@
                     }
                 },
 
+                // --- Analysis Methods ---
+
+                selectAnalysisPair(pair) {
+                    this.selectedAnalysisPair = pair;
+
+                    if (!this.isPairRestricted(pair)) {
+                        this.$nextTick(() => {
+                            this.initTradingView(pair.pairCode);
+                            this.fetchDailyAnalysis(pair.pairCode);
+                            this.fetchSignalHistory(pair.pairCode);
+                        });
+                    }
+                },
+
+                isPairRestricted(pair) {
+                    if (!pair) return false;
+                    // XAUUSD is free for everyone. Others require 'subscription' type.
+                    return pair.pairCode !== 'XAUUSD' && this.subscriptionType === 'unsubscription';
+                },
+
+                async fetchDailyAnalysis(pairCode) {
+                    this.dailyAnalysisLoading = true;
+                    this.dailyAnalysis = null;
+                    try {
+                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/analysis/daily/${pairCode}`, { timeout: 10000 });
+                        const data = await response.json();
+                        if (data.success) {
+                            this.dailyAnalysis = data.data;
+                        }
+                    } catch (error) {
+                        console.error('Error fetching daily analysis:', error);
+                    } finally {
+                        this.dailyAnalysisLoading = false;
+                    }
+                },
+
+                async fetchSignalHistory(pairCode) {
+                    this.signalsLoading = true;
+                    this.signals = [];
+                    try {
+                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/analysis/signals/${pairCode}`, { timeout: 10000 });
+                        const data = await response.json();
+                        if (data.success) {
+                            this.signals = data.data;
+                        }
+                    } catch (error) {
+                        console.error('Error fetching signal history:', error);
+                    } finally {
+                        this.signalsLoading = false;
+                    }
+                },
+
+                initTradingView(pairCode) {
+                    // Normalize pair code for TradingView (e.g. XAUUSD -> FX:XAUUSD or OANDA:XAUUSD)
+                    let symbol = pairCode;
+                    if (pairCode === 'XAUUSD') symbol = 'OANDA:XAUUSD';
+                    else symbol = `FX_IDC:${pairCode}`;
+
+                    if (this.tvWidget) {
+                        // If widget exists, just change the symbol
+                        // However, standard script embed doesn't support easy symbol change without reload
+                        // So we'll clear and recreate
+                        document.getElementById('tradingview_widget').innerHTML = '';
+                    }
+
+                    const script = document.createElement('script');
+                    script.src = 'https://s3.tradingview.com/tv.js';
+                    script.async = true;
+                    script.onload = () => {
+                        new TradingView.widget({
+                            "width": "100%",
+                            "height": "100%",
+                            "symbol": symbol,
+                            "interval": "D",
+                            "timezone": "Asia/Bangkok",
+                            "theme": "light",
+                            "style": "1",
+                            "locale": "th_TH",
+                            "toolbar_bg": "#f1f3f6",
+                            "enable_publishing": false,
+                            "allow_symbol_change": true,
+                            "container_id": "tradingview_widget"
+                        });
+                    };
+                    document.head.appendChild(script);
+                    this.tvWidget = true;
+                },
+
+                formatTime(timestamp) {
+                    if (!timestamp) return '-';
+                    const date = new Date(timestamp);
+                    return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                },
+
+                getSignalClass(signal) {
+                    if (signal.includes('BUY')) return 'bg-green-100 text-green-700';
+                    if (signal.includes('SELL')) return 'bg-red-100 text-red-700';
+                    return 'bg-gray-100 text-gray-700';
+                },
+
+                getConfidenceClass(conf) {
+                    if (conf >= 0.7) return 'text-green-600';
+                    if (conf >= 0.4) return 'text-blue-600';
+                    return 'text-amber-600';
+                },
+
+                openImageModal(url) {
+                    this.modalImage = url;
+                },
+
+                /**
+                 * Fetch telegram link status
+                 */
                 async fetchTelegramStatus() {
                     try {
                         const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/telegram/link-status/${this.userId}`, { timeout: 8000 });
@@ -670,6 +947,27 @@
                     setTimeout(() => {
                         this.message = { text: '', type: '' };
                     }, 4000);
+                },
+
+                /**
+                 * Fetch with timeout helper
+                 */
+                async fetchWithTimeout(resource, options = {}) {
+                    const { timeout = 20000 } = options;
+                    const controller = new AbortController();
+                    const id = setTimeout(() => controller.abort(), timeout);
+
+                    try {
+                        const response = await fetch(resource, {
+                            ...options,
+                            signal: controller.signal
+                        });
+                        clearTimeout(id);
+                        return response;
+                    } catch (error) {
+                        clearTimeout(id);
+                        throw error;
+                    }
                 }
             }
         }).mount('#app');

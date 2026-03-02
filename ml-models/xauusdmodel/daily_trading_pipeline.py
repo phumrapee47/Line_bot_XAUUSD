@@ -25,8 +25,9 @@ load_dotenv()
 
 # Add ml-models directory to path
 ML_MODELS_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(ML_MODELS_DIR)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(ML_MODELS_DIR))
 sys.path.insert(0, os.path.join(PROJECT_ROOT, 'backend', 'src'))
+sys.path.insert(0, ML_MODELS_DIR) # Add own dir for local imports
 
 DATA_DIR = os.path.join(PROJECT_ROOT, 'backend', 'data')
 PREDICTIONS_DIR = os.path.join(DATA_DIR, 'predictions')

@@ -104,7 +104,7 @@ add_plots.append(mpf.make_addplot(df['MACD_Hist'], type='bar', width=0.7, panel=
 
 # สร้าง output directory
 import os
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 output_dir = os.path.join(project_root, 'backend', 'data', 'graphs')
 os.makedirs(output_dir, exist_ok=True)
 

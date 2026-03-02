@@ -121,6 +121,12 @@ const frontendPath = path.join(__dirname, '../../frontend');
 // Serve static files from the frontend directory
 app.use(express.static(frontendPath));
 
+// Serve analysis images from data directory
+const dataPath = path.join(__dirname, '../data');
+app.use('/api/data', express.static(dataPath));
+app.use('/api/data/predictions', express.static(path.join(dataPath, 'predictions')));
+app.use('/api/data/graphs', express.static(path.join(dataPath, 'graphs')));
+
 // Fallback all other GET requests to the main LIFF enhanced settings page
 app.get('*', (req, res) => {
   res.sendFile(path.join(frontendPath, 'liff-enhanced-settings.html'));

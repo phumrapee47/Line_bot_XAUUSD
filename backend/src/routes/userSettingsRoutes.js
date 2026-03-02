@@ -6,8 +6,12 @@ const {
   UserTradingPair, 
   TradingPair, 
   UserNotificationPreferences, 
-  UserTradingParameters 
+  UserTradingParameters,
+  TradingSignal
 } = require('../models');
+const fs = require('fs');
+const path = require('path');
+const { Op } = require('sequelize');
 
 /**
  * GET /api/trading-pairs
@@ -260,6 +264,72 @@ router.post('/users/:userId/settings/reset', async (req, res) => {
       success: false,
       error: error.message
     });
+  }
+});
+
+/**
+ * GET /api/analysis/daily/:pairCode
+ * Get latest Gemini analysis for a specific pair
+ */
+router.get('/analysis/daily/:pairCode', async (req, res) => {
+  const { pairCode } = req.params;
+  try {
+    const summaryPath = path.join(__dirname, '../../data/pipeline_summary.json');
+    if (!fs.existsSync(summaryPath)) {
+      return res.status(404).json({ success: false, error: 'Analysis not found' });
+    }
+
+    const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+    
+    // For now, we only have analysis for XAUUSD. 
+    // If we add more pairs, the pipeline_summary should be per-pair or contain multiple.
+    if (pairCode !== 'XAUUSD') {
+      return res.status(404).json({ success: false, error: 'Analysis not available for this pair' });
+    }
+
+    // Adjust paths for frontend access (remove absolute portions if needed)
+    const result = {
+      ...summary,
+      prediction_image: summary.prediction_image ? path.basename(summary.prediction_image) : null,
+      graph_image: summary.graph_image ? path.basename(summary.graph_image) : null
+    };
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error(`Error fetching daily analysis: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /api/analysis/signals/:pairCode
+ * Get signal history for today
+ */
+router.get('/analysis/signals/:pairCode', async (req, res) => {
+  const { pairCode } = req.params;
+  try {
+    const pair = await TradingPair.findOne({ where: { pairCode } });
+    if (!pair) {
+      return res.status(404).json({ success: false, error: 'Trading pair not found' });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const signals = await TradingSignal.findAll({
+      where: {
+        pairId: pair.id,
+        timestamp: {
+          [Op.gte]: today
+        }
+      },
+      order: [['timestamp', 'DESC']]
+    });
+
+    res.json({ success: true, data: signals });
+  } catch (error) {
+    logger.error(`Error fetching signals: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

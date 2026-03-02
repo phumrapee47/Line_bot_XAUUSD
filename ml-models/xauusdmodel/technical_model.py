@@ -32,7 +32,7 @@ def load_user_parameters_from_db(line_user_id="default"):
     """โหลด User Parameters จาก SQL Database"""
     db_path = os.path.join(
         os.path.dirname(__file__), 
-        '../data/trading_bot.db'
+        '../../data/trading_bot.db'
     )
     
     try:
@@ -87,7 +87,7 @@ def load_user_parameters(user_id="default"):
     """โหลด User Parameters จากไฟล์ JSON (fallback)"""
     params_file = os.path.join(
         os.path.dirname(__file__), 
-        '../data/user_parameters.json'
+        '../../data/user_parameters.json'
     )
     
     try:

@@ -13,7 +13,7 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Get project root
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).parent.parent.parent
 predictions_dir = project_root / 'backend' / 'data' / 'predictions'
 graphs_dir = project_root / 'backend' / 'data' / 'graphs'
 

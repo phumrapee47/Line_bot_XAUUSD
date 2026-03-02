@@ -47,7 +47,7 @@ class PythonBridge {
     try {
       // Mapping pairCode to model script
       const modelMapping = {
-        'XAUUSD': 'technical_model.py',
+        'XAUUSD': 'xauusdmodel/technical_model.py',
         // 'BTCUSD': 'crypto_model.py', // Future models
       };
 
@@ -67,7 +67,7 @@ class PythonBridge {
 
   async getNewsAnalysis() {
     try {
-      const scriptPath = path.join(__dirname, '../../../ml-models', 'news_model.py');
+      const scriptPath = path.join(__dirname, '../../../ml-models/xauusdmodel', 'news_model.py');
       const result = await this.runPythonScript(scriptPath);
       logger.info(`News analysis completed: score=${result.score}`);
       return result;

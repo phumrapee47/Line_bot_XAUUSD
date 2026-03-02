@@ -52,7 +52,7 @@ def run_daily_analysis():
     
     try:
         # Import after project root is set
-        from daily_trading_pipeline import main
+        from xauusdmodel.daily_trading_pipeline import main
         success = main()
         
         if success:

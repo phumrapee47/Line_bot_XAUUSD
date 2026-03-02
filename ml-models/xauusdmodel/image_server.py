@@ -12,7 +12,7 @@ import threading
 import time
 
 # Configuration
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 IMAGES_DIR = PROJECT_ROOT / 'backend' / 'data'
 PORT = 8443  # HTTPS port
 
