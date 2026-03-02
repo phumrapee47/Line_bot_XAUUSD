@@ -5,12 +5,18 @@ Technical Analysis Model - Supports User Parameters from SQL Database
 ใช้ yfinance ดึงข้อมูลทองคำและทำนายแนวโน้ม ตามพารามิเตอร์ของผู้ใช้งานจาก SQL
 """
 
-import yfinance as yf
 import pandas as pd
 import json
 import sys
 import os
 import sqlite3
+from twelvedata import TDClient
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+TWELVEDATA_API_KEY = os.getenv("TWELVEDATA_API_KEY")
 
 def logger_info(msg):
     print(f"INFO: {msg}", file=sys.stderr)
@@ -112,75 +118,85 @@ def calculate_rsi(data, period=14):
     return rsi
 
 def get_technical_prediction(pair_code="XAUUSD"):
-    """Get technical prediction based on system-wide optimized parameters"""
-    # Use fixed system parameters (User editing is now disabled)
+    """Get technical prediction based on TwelveData data"""
     params = DEFAULT_PARAMS.copy()
     
     try:
-        # Map pair_code to yfinance symbol
-        symbol_map = {
-            "XAUUSD": "GC=F",
-            "BTCUSD": "BTC-USD",
-        }
-        symbol = symbol_map.get(pair_code, "GC=F")
-        
-        logger_info(f"Analyzing {pair_code} using symbol {symbol}")
-
-        # Fetch data
-        ticker = yf.Ticker(symbol)
-        df = ticker.history(period=params['history_period'], interval="1d")
-        
-        if df.empty or len(df) < params['rsi_period']:
+        if not TWELVEDATA_API_KEY or "your_twelvedata_api_key" in TWELVEDATA_API_KEY:
             return {
                 "probability": 0.5,
                 "price": 0,
                 "tp": 0,
                 "sl": 0,
-                "error": "Insufficient data"
+                "error": "TWELVEDATA_API_KEY not configured"
+            }
+
+        # Map pair_code to TwelveData symbol
+        symbol_map = {
+            "XAUUSD": "XAU/USD",
+            "BTCUSD": "BTC/USD",
+        }
+        symbol = symbol_map.get(pair_code, "XAU/USD")
+        
+        logger_info(f"Analyzing {pair_code} using TwelveData symbol {symbol}")
+
+        # Initialize TwelveData client
+        td = TDClient(apikey=TWELVEDATA_API_KEY)
+        ts = td.time_series(
+            symbol=symbol,
+            interval="1day",
+            outputsize=100
+        )
+        
+        # Convert to pandas DataFrame
+        df = ts.as_pandas()
+        
+        if df.empty:
+            return {
+                "probability": 0.5,
+                "price": 0,
+                "tp": 0,
+                "sl": 0,
+                "error": "No data received from TwelveData"
             }
         
+        # TwelveData returns most recent data first, need to reverse it for rolling calcs
+        df = df.iloc[::-1]
+        
         # Calculate simple technical indicators
-        df['return'] = df['Close'].pct_change()
+        df['close'] = df['close'].astype(float)
+        df['high'] = df['high'].astype(float)
+        df['low'] = df['low'].astype(float)
         
         # RSI - use user's period
-        df['rsi'] = calculate_rsi(df['Close'], params['rsi_period'])
+        df['rsi'] = calculate_rsi(df['close'], params['rsi_period'])
         
         # Moving Averages - use user's periods
-        df['sma_short'] = df['Close'].rolling(window=params['sma_short']).mean()
-        df['sma_long'] = df['Close'].rolling(window=params['sma_long']).mean()
+        df['sma_short'] = df['close'].rolling(window=params['sma_short']).mean()
+        df['sma_long'] = df['close'].rolling(window=params['sma_long']).mean()
         
-        # ATR - use user's period
-        df['high_low'] = df['High'] - df['Low']
-        df['high_close'] = abs(df['High'] - df['Close'].shift())
-        df['low_close'] = abs(df['Low'] - df['Close'].shift())
+        # ATR calculation
+        df['high_low'] = df['high'] - df['low']
+        df['high_close'] = abs(df['high'] - df['close'].shift())
+        df['low_close'] = abs(df['low'] - df['close'].shift())
         df['tr'] = df[['high_low', 'high_close', 'low_close']].max(axis=1)
         df['atr'] = df['tr'].rolling(window=params['atr_period']).mean()
         
-        # Fill NaN values instead of dropping them
-        df['rsi'] = df['rsi'].fillna(50)  # Default to neutral
+        # Fill NaN values
+        df['rsi'] = df['rsi'].fillna(50)
         df['sma_short'] = df['sma_short'].bfill().ffill()
         df['sma_long'] = df['sma_long'].bfill().ffill()
-        df['atr'] = df['atr'].fillna(df['tr'].mean())  # Use mean if NaN
-        
-        # Remove only if still completely empty
-        if df.empty or len(df) == 0:
-            return {
-                "probability": 0.5,
-                "price": 0,
-                "tp": 0,
-                "sl": 0,
-                "error": "No valid data"
-            }
+        df['atr'] = df['atr'].fillna(df['tr'].mean())
         
         # Get latest values
         last = df.iloc[-1]
-        price = float(last['Close'])
-        rsi = float(last['rsi']) if pd.notna(last['rsi']) else 50
-        sma_short = float(last['sma_short']) if pd.notna(last['sma_short']) else price
-        sma_long = float(last['sma_long']) if pd.notna(last['sma_long']) else price
-        atr = float(last['atr']) if pd.notna(last['atr']) else price * 0.01
+        price = float(last['close'])
+        rsi = float(last['rsi'])
+        sma_short = float(last['sma_short'])
+        sma_long = float(last['sma_long'])
+        atr = float(last['atr'])
         
-        # Signal calculation with user weights
+        # Signal calculation
         rsi_signal = (rsi - 50) / 50
         sma_signal = 0
         if price > sma_short and sma_short > sma_long:
@@ -188,23 +204,23 @@ def get_technical_prediction(pair_code="XAUUSD"):
         elif price < sma_short and sma_short < sma_long:
             sma_signal = -0.5
         
-        # Combine signals using user's weights
+        # Combine signals
         prob_up = 0.5 + (rsi_signal * params['rsi_weight']) + (sma_signal * params['sma_weight'])
         prob_up = max(0.0, min(1.0, prob_up))
         
-        # Calculate TP/SL using user's multipliers
+        # Calculate TP/SL
         if prob_up > 0.5:
-            tp = price + params['tp_multiplier'] * atr
-            sl = price - params['sl_multiplier'] * atr
+            tp = price + (params['tp_multiplier'] * atr)
+            sl = price - (params['sl_multiplier'] * atr)
         else:
-            tp = price - params['tp_multiplier'] * atr
-            sl = price + params['sl_multiplier'] * atr
+            tp = price - (params['tp_multiplier'] * atr)
+            sl = price + (params['sl_multiplier'] * atr)
         
         return {
             "probability": prob_up,
             "price": price,
-            "tp": tp,
-            "sl": sl,
+            "tp": float(tp),
+            "sl": float(sl),
             "used_params": params
         }
     

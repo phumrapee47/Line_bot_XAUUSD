@@ -1,16 +1,27 @@
-import yfinance as yf
 import pandas as pd
 import mplfinance as mpf
 import os
 from datetime import datetime
 import time
+from twelvedata import TDClient
+from dotenv import load_dotenv
 
-# Download data for Gold Futures (GC=F)
-ticker = 'GC=F'  # Gold Futures
-interval = '60m' # 1-hour timeframe
-period = '60d'   # Get data for the last 60 days to ensure enough data for EMA200
+# Load environment variables
+load_dotenv()
 
-print(f"Downloading {ticker} data with retry logic...")
+TWELVEDATA_API_KEY = os.getenv("TWELVEDATA_API_KEY")
+
+# Symbol for Gold in TwelveData
+symbol = 'XAU/USD'
+interval = '1h' # 1-hour timeframe
+outputsize = 500 # Sufficient for indicators (EMA200, etc.)
+
+print(f"Downloading {symbol} data from TwelveData...")
+
+if not TWELVEDATA_API_KEY or "your_twelvedata_api_key" in TWELVEDATA_API_KEY:
+    print("\n[ERROR] TWELVEDATA_API_KEY not configured in .env")
+    import sys
+    sys.exit(1)
 
 # Retry logic with exponential backoff
 max_retries = 3
@@ -20,10 +31,16 @@ df = None
 while retry_count < max_retries:
     try:
         print(f"Attempt {retry_count + 1}/{max_retries}...")
-        df = yf.download(ticker, interval=interval, period=period, progress=False)
+        td = TDClient(apikey=TWELVEDATA_API_KEY)
+        ts = td.time_series(
+            symbol=symbol,
+            interval=interval,
+            outputsize=outputsize
+        )
+        df = ts.as_pandas()
         
         if df.empty or df is None:
-            raise ValueError(f"No data returned for {ticker}")
+            raise ValueError(f"No data returned for {symbol}")
         
         print(f"[OK] Successfully downloaded data")
         break
@@ -33,7 +50,7 @@ while retry_count < max_retries:
         print(f"[FAIL] Download failed: {str(e)[:100]}")
         
         if retry_count < max_retries:
-            wait_time = 2 ** retry_count  # exponential backoff: 2, 4, 8 seconds
+            wait_time = 2 ** retry_count
             print(f"  Retrying in {wait_time} seconds...")
             time.sleep(wait_time)
         else:
@@ -42,26 +59,19 @@ while retry_count < max_retries:
 
 # Check if data was downloaded successfully
 if df is None or df.empty:
-    print(f"\n[WARNING] ERROR: Could not download data for {ticker}")
-    print("Possible causes:")
-    print("  1. Internet connection is not stable")
-    print("  2. Yahoo Finance server is temporarily unavailable")
-    print("  3. Rate limiting from Yahoo Finance API")
-    print("\nTrying alternative data source or using cached data...")
-    
-    # Try creating a simple fallback chart with dummy data
-    # Or exit gracefully
+    print(f"\n[WARNING] ERROR: Could not download data for {symbol}")
     import sys
     sys.exit(1)
 else:
-    # Flatten MultiIndex columns if they exist. yfinance usually returns MultiIndex
-    # where the first level is the metric (Open, Close, etc.) and the second level is the ticker symbol.
-    if isinstance(df.columns, pd.MultiIndex):
-        # Drop the second level (index 1), which is typically the ticker symbol for a single ticker
-        df.columns = df.columns.droplevel(1)
-        # Ensure 'Close' column exists, sometimes 'Adj Close' is provided by yfinance
-        if 'Adj Close' in df.columns and 'Close' not in df.columns:
-            df.rename(columns={'Adj Close': 'Close'}, inplace=True)
+    # Reverse to chronological order (TwelveData returns most recent first)
+    df = df.iloc[::-1]
+    
+    # Capitalize columns for mplfinance
+    df.columns = [col.capitalize() for col in df.columns]
+    
+    # Ensure numeric types
+    for col in ['Open', 'High', 'Low', 'Close']:
+        df[col] = pd.to_numeric(df[col])
 
     print(f"\nSuccessfully downloaded {len(df)} rows of data.")
     print("Data preview (last 5 rows):")

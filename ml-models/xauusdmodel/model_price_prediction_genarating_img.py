@@ -1,13 +1,19 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import yfinance as yf
 from datetime import datetime, timedelta
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 import math
 import os
 from pathlib import Path
+from twelvedata import TDClient
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+TWELVEDATA_API_KEY = os.getenv("TWELVEDATA_API_KEY")
 
 # TensorFlow/Keras imports
 import tensorflow as tf
@@ -23,15 +29,35 @@ print("XAUUSD LSTM Price Prediction Model")
 print("="*80)
 
 # ============================================================================
-# Download XAUUSD historical data (2011-2019)
+# Download XAUUSD historical data
 # ============================================================================
-print("\n[1] Downloading XAUUSD historical data (2011-2019)...")
-ticker_symbol_xauusd = 'GC=F'
-start_date_xauusd = '2011-01-01'
-end_date_xauusd = '2019-12-31'
+print("\n[1] Downloading XAUUSD historical data from TwelveData...")
+symbol = 'XAU/USD'
 
-xauusd_data = yf.download(ticker_symbol_xauusd, start=start_date_xauusd, end=end_date_xauusd, progress=False)
-closing_prices_xauusd = xauusd_data['Close'].values.reshape(-1, 1)
+if not TWELVEDATA_API_KEY or "your_twelvedata_api_key" in TWELVEDATA_API_KEY:
+    print("\n[ERROR] TWELVEDATA_API_KEY not configured in .env")
+    import sys
+    sys.exit(1)
+
+td = TDClient(apikey=TWELVEDATA_API_KEY)
+# We'll fetch a large enough chunk of daily data. 
+# Note: 5000 is a lot, adjust based on TwelveData limits for your account type.
+ts = td.time_series(
+    symbol=symbol,
+    interval="1day",
+    outputsize=2000 
+)
+df = ts.as_pandas()
+
+if df.empty:
+    print("\n[ERROR] No data received from TwelveData")
+    import sys
+    sys.exit(1)
+
+# Reverse to chronological order
+df = df.iloc[::-1]
+closing_prices_xauusd = df['close'].astype(float).values.reshape(-1, 1)
+
 print(f"Data shape: {closing_prices_xauusd.shape}")
 print(f"First 5 prices: {closing_prices_xauusd[:5].flatten()}")
 print(f"Last 5 prices: {closing_prices_xauusd[-5:].flatten()}")
@@ -123,18 +149,15 @@ rmse_xauusd = math.sqrt(mean_squared_error(y_test_xauusd_original, predictions_x
 print(f"Test RMSE: {rmse_xauusd:.6f}")
 
 # ============================================================================
-# Download recent XAUUSD data (last 90 days)
+# Prepare recent XAUUSD data (last 90 days from the downloaded set)
 # ============================================================================
-print("\n[10] Downloading recent XAUUSD data (last 90 days)...")
-end_date_recent = datetime.now()
-start_date_recent = end_date_recent - timedelta(days=120)
-start_date_str = start_date_recent.strftime('%Y-%m-%d')
-end_date_str = end_date_recent.strftime('%Y-%m-%d')
+print("\n[10] Preparing recent XAUUSD data for visualization...")
 
-print(f"Date range: {start_date_str} to {end_date_str}")
+# Since we already downloaded 2000 rows, we can just use the most recent ones
+# instead of downloading again.
+recent_xauusd_data = df.tail(120) 
+recent_closing_prices_xauusd = recent_xauusd_data['close'].astype(float).values.reshape(-1, 1)
 
-recent_xauusd_data = yf.download(ticker_symbol_xauusd, start=start_date_str, end=end_date_str, progress=False)
-recent_closing_prices_xauusd = recent_xauusd_data['Close'].values.reshape(-1, 1)
 print(f"Recent data shape: {recent_closing_prices_xauusd.shape}")
 print(f"First 5 recent prices: {recent_closing_prices_xauusd[:5].flatten()}")
 print(f"Last 5 recent prices: {recent_closing_prices_xauusd[-5:].flatten()}")

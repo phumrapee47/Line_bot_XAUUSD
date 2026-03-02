@@ -168,7 +168,15 @@
 
                     <!-- Signal History Section -->
                     <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-xl font-bold text-gray-800 mb-4">📜 ประวัติสัญญาณวันนี้</h2>
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold text-gray-800">📜 ประวัติสัญญาณวันนี้</h2>
+                            <button @click="runManualCheck" :disabled="checking"
+                                class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-full transition disabled:bg-gray-400 flex items-center gap-1">
+                                <span v-if="!checking">🔄 วิเคราะห์ตอนนี้</span>
+                                <span v-else class="animate-spin">⌛</span>
+                                <span v-if="checking">กำลังวิเคราะห์...</span>
+                            </button>
+                        </div>
 
                         <div v-if="signalsLoading" class="space-y-3">
                             <div v-for="i in 3" class="h-16 bg-gray-50 animate-pulse rounded-lg"></div>

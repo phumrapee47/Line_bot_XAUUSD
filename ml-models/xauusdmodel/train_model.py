@@ -7,8 +7,6 @@ XGBoost Model Training Script for Gold (XAUUSD) Price Prediction
 This script requires historical OHLC data. If you don't have it, use yfinance to fetch:
 """
 
-import yfinance as yf
-import pandas_ta as ta
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -16,12 +14,46 @@ from sklearn.preprocessing import StandardScaler
 import joblib
 import xgboost as xgb
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from twelvedata import TDClient
+from dotenv import load_dotenv
+import os
+
+# Load environment variables
+load_dotenv()
+
+TWELVEDATA_API_KEY = os.getenv("TWELVEDATA_API_KEY")
 
 def fetch_gold_data(period='2y', interval='1d'):
-    """ดึงข้อมูลทองคำจาก yfinance"""
-    print("📥 Fetching gold data...")
-    gold = yf.Ticker("GC=F")
-    df = gold.history(period=period, interval=interval)
+    """ดึงข้อมูลทองคำจาก TwelveData"""
+    print(f"📥 Fetching gold data from TwelveData...")
+    
+    if not TWELVEDATA_API_KEY or "your_twelvedata_api_key" in TWELVEDATA_API_KEY:
+        raise ValueError("TWELVEDATA_API_KEY not configured in .env")
+
+    symbol = "XAU/USD"
+    # Map yfinance period to outputsize roughly
+    # 2y 1d ~ 500 rows
+    outputsize = 1000 if period == '2y' else 500
+    
+    td = TDClient(apikey=TWELVEDATA_API_KEY)
+    ts = td.time_series(
+        symbol=symbol,
+        interval="1day",
+        outputsize=outputsize
+    )
+    df = ts.as_pandas()
+    
+    if df.empty:
+        raise ValueError("No data received from TwelveData")
+    
+    # Reverse to chronological order
+    df = df.iloc[::-1]
+    
+    # Capitalize columns to match expectations in calculate_indicators
+    df.columns = [col.capitalize() for col in df.columns]
+    for col in ['Open', 'High', 'Low', 'Close']:
+        df[col] = pd.to_numeric(df[col])
+        
     print(f"✅ Fetched {len(df)} candles")
     return df
 
