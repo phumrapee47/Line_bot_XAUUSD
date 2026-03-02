@@ -10,7 +10,7 @@ yfinance==0.2.32
 pandas-ta==0.3.14b0
 feedparser==6.0.10
 requests==2.31.0
-twelvedata==1.3.0
+twelvedata>=1.2.0
 
 # ML & NLP
 torch==2.1.1
