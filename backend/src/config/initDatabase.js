@@ -8,8 +8,8 @@ async function initDatabase() {
     if (sequelize.options && sequelize.options.dialect === 'postgres') {
       logger.info('Initializing PostgreSQL database...');
       
-      // Sync all models
-      await sequelize.sync({ alter: true }); // Use alter: true to update tables without dropping
+      // Sync all models - avoid alter:true in production if possible as it can be slow/hang
+      await sequelize.sync(); 
       
       logger.info('✅ Database tables synchronized successfully');
       

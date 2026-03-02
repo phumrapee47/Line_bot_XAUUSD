@@ -456,7 +456,7 @@
                     tabs: ['analysis', 'pairs', 'notifications', 'telegram'],
                     userId: null,
                     subscriptionType: 'unsubscription',
-                    backendUrl: (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3000' : `https://${window.location.hostname}`,
+                    backendUrl: '', // Will be overridden if local in code or used as prefix
 
                     // Analysis
                     analysisPairs: [],
@@ -515,6 +515,7 @@
             },
 
             mounted() {
+                this.backendUrl = this.getBackendUrl();
                 this.initLiff();
             },
 
@@ -545,10 +546,13 @@
                 },
 
                 getBackendUrl() {
-                    const url = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                        ? 'http://localhost:3000'
-                        : `https://${window.location.hostname}`;
-                    return url;
+                    // For monolithic deployment, same origin is safest.
+                    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                        return 'http://localhost:3000';
+                    }
+                    // Return empty string to allow relative path fetching (/api/...) 
+                    // which automatically uses the current origin
+                    return '';
                 },
 
                 async initLiff() {

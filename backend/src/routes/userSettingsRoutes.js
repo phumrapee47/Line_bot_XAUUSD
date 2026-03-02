@@ -18,7 +18,7 @@ const { Op } = require('sequelize');
  * Get all available trading pairs
  */
 router.get('/trading-pairs', async (req, res) => {
-  logger.info('Fetching trading pairs...');
+  logger.info(`[API] GET /trading-pairs requested from ${req.ip}`);
   try {
     const pairs = await TradingPair.findAll({
       where: { isActive: true }
