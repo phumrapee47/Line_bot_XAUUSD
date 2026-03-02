@@ -7,7 +7,7 @@ keras==2.13.0
 
 # Data fetching & processing
 yfinance==0.2.32
-pandas-ta==0.3.14b0
+pandas-ta>=0.3.14b0
 feedparser==6.0.10
 requests==2.31.0
 twelvedata>=1.2.0
