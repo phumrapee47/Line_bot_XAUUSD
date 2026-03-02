@@ -12,6 +12,7 @@ const {
 const fs = require('fs');
 const path = require('path');
 const { Op } = require('sequelize');
+const supabaseService = require('../services/supabaseService');
 
 /**
  * GET /api/trading-pairs
@@ -274,24 +275,76 @@ router.post('/users/:userId/settings/reset', async (req, res) => {
 router.get('/analysis/daily/:pairCode', async (req, res) => {
   const { pairCode } = req.params;
   try {
-    const summaryPath = path.join(__dirname, '../../data/pipeline_summary.json');
+    const dataDir = path.join(__dirname, '../../data');
+    const summaryPath = path.join(dataDir, 'pipeline_summary.json');
     if (!fs.existsSync(summaryPath)) {
       return res.status(404).json({ success: false, error: 'Analysis not found' });
     }
 
     const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
     
-    // For now, we only have analysis for XAUUSD. 
-    // If we add more pairs, the pipeline_summary should be per-pair or contain multiple.
+    // For now, we only have analysis for XAUUSD.
     if (pairCode !== 'XAUUSD') {
       return res.status(404).json({ success: false, error: 'Analysis not available for this pair' });
     }
 
-    // Adjust paths for frontend access (remove absolute portions if needed)
+    // --- Automatic Supabase Sync ---
+    let updatedSummary = { ...summary };
+    let needsSave = false;
+
+    if (supabaseService.isEnabled()) {
+      // 1. Check/Upload Prediction Image
+      if (summary.prediction_image && !summary.prediction_image.startsWith('http')) {
+        const localPath = path.isAbsolute(summary.prediction_image) 
+          ? summary.prediction_image 
+          : path.join(dataDir, 'predictions', path.basename(summary.prediction_image));
+        
+        const fileName = path.basename(summary.prediction_image);
+        const destination = `predictions/${fileName}`;
+        
+        const publicUrl = await supabaseService.uploadFile(localPath, destination);
+        if (publicUrl) {
+          updatedSummary.prediction_image = publicUrl;
+          needsSave = true;
+        }
+      }
+
+      // 2. Check/Upload Graph Image
+      if (summary.graph_image && !summary.graph_image.startsWith('http')) {
+        const localPath = path.isAbsolute(summary.graph_image) 
+          ? summary.graph_image 
+          : path.join(dataDir, 'graphs', path.basename(summary.graph_image));
+        
+        const fileName = path.basename(summary.graph_image);
+        const destination = `graphs/${fileName}`;
+        
+        const publicUrl = await supabaseService.uploadFile(localPath, destination);
+        if (publicUrl) {
+          updatedSummary.graph_image = publicUrl;
+          needsSave = true;
+        }
+      }
+
+      // If we uploaded new files, update the summary on disk for next time
+      if (needsSave) {
+        try {
+          fs.writeFileSync(summaryPath, JSON.stringify(updatedSummary, null, 2));
+          logger.info(`Pipeline summary updated with Supabase URLs for ${pairCode}`);
+        } catch (writeError) {
+          logger.warn(`Could not save updated summary to disk: ${writeError.message}`);
+        }
+      }
+    }
+
+    // Format for frontend (if not http, it's just the filename for local serving fallback)
     const result = {
-      ...summary,
-      prediction_image: summary.prediction_image ? path.basename(summary.prediction_image) : null,
-      graph_image: summary.graph_image ? path.basename(summary.graph_image) : null
+      ...updatedSummary,
+      prediction_image: updatedSummary.prediction_image?.startsWith('http') 
+        ? updatedSummary.prediction_image 
+        : (updatedSummary.prediction_image ? path.basename(updatedSummary.prediction_image) : null),
+      graph_image: updatedSummary.graph_image?.startsWith('http') 
+        ? updatedSummary.graph_image 
+        : (updatedSummary.graph_image ? path.basename(updatedSummary.graph_image) : null)
     };
 
     res.json({ success: true, data: result });

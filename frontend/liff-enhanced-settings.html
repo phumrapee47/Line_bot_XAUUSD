@@ -136,15 +136,15 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div v-if="dailyAnalysis.prediction_image" class="space-y-2">
                                     <p class="text-sm font-semibold text-gray-600">📈 LSTM Price Prediction</p>
-                                    <img :src="`${backendUrl}/api/data/predictions/${dailyAnalysis.prediction_image}`"
+                                    <img :src="getImageUrl(dailyAnalysis.prediction_image, 'predictions')"
                                         class="w-full rounded-lg border border-gray-200 shadow-sm cursor-zoom-in"
-                                        @click="openImageModal(`${backendUrl}/api/data/predictions/${dailyAnalysis.prediction_image}`)">
+                                        @click="openImageModal(getImageUrl(dailyAnalysis.prediction_image, 'predictions'))">
                                 </div>
                                 <div v-if="dailyAnalysis.graph_image" class="space-y-2">
                                     <p class="text-sm font-semibold text-gray-600">📊 Technical Charts (Daily)</p>
-                                    <img :src="`${backendUrl}/api/data/graphs/${dailyAnalysis.graph_image}`"
+                                    <img :src="getImageUrl(dailyAnalysis.graph_image, 'graphs')"
                                         class="w-full rounded-lg border border-gray-200 shadow-sm cursor-zoom-in"
-                                        @click="openImageModal(`${backendUrl}/api/data/graphs/${dailyAnalysis.graph_image}`)">
+                                        @click="openImageModal(getImageUrl(dailyAnalysis.graph_image, 'graphs'))">
                                 </div>
                             </div>
 
@@ -775,6 +775,12 @@
                     if (conf >= 0.7) return 'text-green-600';
                     if (conf >= 0.4) return 'text-blue-600';
                     return 'text-amber-600';
+                },
+
+                getImageUrl(imagePath, type) {
+                    if (!imagePath) return '';
+                    if (imagePath.startsWith('http')) return imagePath;
+                    return `${this.backendUrl}/api/data/${type}/${imagePath}`;
                 },
 
                 openImageModal(url) {

@@ -43,5 +43,12 @@ module.exports = {
   // Server Configuration
   server: {
     port: parseInt(process.env.PORT) || 3000
+  },
+
+  // Supabase Configuration
+  supabase: {
+    url: process.env.SUPABASE_URL,
+    key: process.env.SUPABASE_KEY,
+    bucket: process.env.SUPABASE_BUCKET || 'analysis-results'
   }
 };
