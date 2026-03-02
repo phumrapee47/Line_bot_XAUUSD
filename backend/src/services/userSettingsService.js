@@ -1,8 +1,11 @@
-const User = require('../models/User');
-const UserNotificationPreferences = require('../models/UserNotificationPreferences');
-const UserTradingParameters = require('../models/UserTradingParameters');
-const UserTradingPair = require('../models/UserTradingPair');
-const TradingPair = require('../models/TradingPair');
+const { 
+  User, 
+  UserNotificationPreferences, 
+  UserTradingParameters, 
+  UserTradingPair, 
+  TradingPair,
+  sequelize
+} = require('../models');
 const logger = require('../utils/logger');
 
 class UserSettingsService {
