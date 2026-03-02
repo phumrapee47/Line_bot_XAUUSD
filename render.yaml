@@ -65,12 +65,12 @@ services:
       - key: CHECK_INTERVAL_MINUTES
         value: "60"
       - key: PYTHON_VERSION
-        value: "3.11.10"
+        value: "3.12.0"
 
   # Python ML Model Scheduler (Background Worker)
   - type: background_worker
     name: xauusd-python-scheduler
-    runtime: python-3.11
+    runtime: python
     plan: free
     buildCommand: pip install -r ml-models/requirements.txt
     startCommand: cd ml-models && python scheduler.py
@@ -93,3 +93,5 @@ services:
         value: "0.6"
       - key: NEWS_WEIGHT
         value: "0.4"
+      - key: PYTHON_VERSION
+        value: "3.12.0"
