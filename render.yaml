@@ -64,6 +64,8 @@ services:
         value: "0.40"
       - key: CHECK_INTERVAL_MINUTES
         value: "60"
+      - key: PYTHON_VERSION
+        value: "3.11.10"
 
   # Python ML Model Scheduler (Background Worker)
   - type: background_worker
