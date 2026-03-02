@@ -41,10 +41,11 @@ router.get('/trading-pairs', async (req, res) => {
       data: pairs
     });
   } catch (error) {
-    logger.error('Error fetching trading pairs:', error.message);
+    logger.error(`Error fetching trading pairs: ${error.message}`);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+      hint: 'Check database connection or Render logs for details'
     });
   }
 });
