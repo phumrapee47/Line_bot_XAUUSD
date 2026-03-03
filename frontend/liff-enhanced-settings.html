@@ -800,7 +800,43 @@
                     }
                 },
 
-                // ... (rest of methods)
+                isPairRestricted(pair) {
+                    if (!pair) return false;
+                    // XAUUSD is free for everyone. Others require 'subscription' type.
+                    return pair.pairCode !== 'XAUUSD' && this.subscriptionType === 'unsubscription';
+                },
+
+                async fetchDailyAnalysis(pairCode) {
+                    this.dailyAnalysisLoading = true;
+                    this.dailyAnalysis = null;
+                    try {
+                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/analysis/daily/${pairCode}`, { timeout: 10000 });
+                        const data = await response.json();
+                        if (data.success) {
+                            this.dailyAnalysis = data.data;
+                        }
+                    } catch (error) {
+                        console.error('Error fetching daily analysis:', error);
+                    } finally {
+                        this.dailyAnalysisLoading = false;
+                    }
+                },
+
+                async fetchSignalHistory(pairCode) {
+                    this.signalsLoading = true;
+                    this.signals = [];
+                    try {
+                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/analysis/signals/${pairCode}`, { timeout: 10000 });
+                        const data = await response.json();
+                        if (data.success) {
+                            this.signals = data.data;
+                        }
+                    } catch (error) {
+                        console.error('Error fetching signal history:', error);
+                    } finally {
+                        this.signalsLoading = false;
+                    }
+                },
 
                 initTradingView(pairCode) {
                     let symbol = pairCode;
@@ -1100,26 +1136,6 @@
                     }, 4000);
                 },
 
-                /**
-                 * Fetch with timeout helper
-                 */
-                async fetchWithTimeout(resource, options = {}) {
-                    const { timeout = 30000 } = options;
-                    const controller = new AbortController();
-                    const id = setTimeout(() => controller.abort(), timeout);
-
-                    try {
-                        const response = await fetch(resource, {
-                            ...options,
-                            signal: controller.signal
-                        });
-                        clearTimeout(id);
-                        return response;
-                    } catch (error) {
-                        clearTimeout(id);
-                        throw error;
-                    }
-                }
             }
         }).mount('#app');
     </script>
