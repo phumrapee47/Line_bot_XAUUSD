@@ -808,10 +808,17 @@
                 },
 
                 initTradingView(pairCode) {
-                    // Normalize pair code for TradingView (e.g. XAUUSD -> FX:XAUUSD or OANDA:XAUUSD)
                     let symbol = pairCode;
-                    if (pairCode === 'XAUUSD') symbol = 'OANDA:XAUUSD';
-                    else symbol = `FX_IDC:${pairCode}`;
+
+                    if (pairCode === 'XAUUSD') {
+                        symbol = 'OANDA:XAUUSD';
+                    } else if (pairCode.includes('/')) {
+                        // Crypto pairs like BTC/USDT -> BINANCE:BTCUSDT
+                        const cleanSymbol = pairCode.replace('/', '');
+                        symbol = `BINANCE:${cleanSymbol}`;
+                    } else {
+                        symbol = `FX_IDC:${pairCode}`;
+                    }
 
                     if (this.tvWidget) {
                         // If widget exists, just change the symbol
