@@ -8,3 +8,4 @@ twelvedata>=1.2.0
 ccxt
 python-dotenv>=1.0.0
 pandas-ta
+scikit-learn
