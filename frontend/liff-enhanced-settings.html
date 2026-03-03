@@ -608,7 +608,7 @@
                  * Fetch with timeout helper
                  */
                 async fetchWithTimeout(resource, options = {}) {
-                    const { timeout = 20000 } = options;
+                    const { timeout = 30000 } = options;
                     const controller = new AbortController();
                     const id = setTimeout(() => controller.abort(), timeout);
 
@@ -644,7 +644,7 @@
                         this.loadingStatus = 'กำลังดึงค่ากำหนดระบบ...';
                         const configUrl = `${this.getBackendUrl()}/api/liff/config`;
 
-                        const configResponse = await this.fetchWithTimeout(configUrl, { timeout: 15000 });
+                        const configResponse = await this.fetchWithTimeout(configUrl, { timeout: 30000 });
                         if (!configResponse.ok) throw new Error(`HTTP error! status: ${configResponse.status}`);
                         const configData = await configResponse.json();
 
@@ -676,7 +676,7 @@
                 async loadAllSettings() {
                     try {
                         this.loadingStatus = 'กำลังโหลดข้อมูลคู่เงิน...';
-                        const pairsResponse = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/trading-pairs`, { timeout: 15000 });
+                        const pairsResponse = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/trading-pairs`, { timeout: 30000 });
                         const pairsData = await pairsResponse.json();
                         if (pairsData.success) {
                             this.availablePairs = pairsData.data;
@@ -693,7 +693,7 @@
 
                         this.loadingStatus = 'ต้องการการตอบสนองจากเซิร์ฟเวอร์...';
                         const userUrl = `${this.getBackendUrl()}/api/users/${this.userId}`;
-                        const userResponse = await this.fetchWithTimeout(userUrl, { timeout: 15000 });
+                        const userResponse = await this.fetchWithTimeout(userUrl, { timeout: 30000 });
 
                         if (userResponse.status === 404) {
                             console.log('User not found, initial setup');
@@ -813,8 +813,9 @@
                     if (pairCode === 'XAUUSD') {
                         symbol = 'OANDA:XAUUSD';
                     } else if (pairCode.includes('/')) {
-                        // Crypto pairs like BTC/USDT -> BINANCE:BTCUSDT
-                        const cleanSymbol = pairCode.replace('/', '');
+                        // Crypto pairs like BTC/USDT -> BINANCE:BTCUSD
+                        // User noted TradingView uses symbol without the 'T' (USD instead of USDT)
+                        const cleanSymbol = pairCode.replace('/USDT', 'USD').replace('/', '');
                         symbol = `BINANCE:${cleanSymbol}`;
                     } else {
                         symbol = `FX_IDC:${pairCode}`;
@@ -1098,7 +1099,7 @@
                  * Fetch with timeout helper
                  */
                 async fetchWithTimeout(resource, options = {}) {
-                    const { timeout = 20000 } = options;
+                    const { timeout = 30000 } = options;
                     const controller = new AbortController();
                     const id = setTimeout(() => controller.abort(), timeout);
 

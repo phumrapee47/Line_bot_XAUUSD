@@ -204,6 +204,13 @@ def generate_line_signal(df, model, symbol, threshold_prob=0.6):
             "message": None
         }
 
+    def format_price(p):
+        if p is None: return "N/A"
+        if p >= 100: return f"{p:,.2f}"
+        if p >= 1: return f"{p:,.4f}"
+        if p >= 0.0001: return f"{p:.6f}"
+        return f"{p:.8f}"
+
     message = (
         f"🔔 {symbol} Trading Signal 🔔\n"
         f"━━━━━━━━━━━━━━━━━━\n"
@@ -211,10 +218,10 @@ def generate_line_signal(df, model, symbol, threshold_prob=0.6):
         f"Confidence: {confidence:.2f}%\n\n"
         f"📊 Technical Score: {score:.2f}%\n"
         f"📈 Trend: {'Bullish' if current_price > last_row['ema200'].values[0] else 'Bearish'}\n\n"
-        f"💰 Entry: ${current_price:,.2f}\n"
-        f"🎯 TP 1: ${tp1:,.2f} (Half Close)\n"
-        f"🎯 TP 2: ${tp2:,.2f} (Follow Trend)\n"
-        f"🛡️ Stop Loss: ${sl:,.2f}\n\n"
+        f"💰 Entry: ${format_price(current_price)}\n"
+        f"🎯 TP 1: ${format_price(tp1)} (Half Close)\n"
+        f"🎯 TP 2: ${format_price(tp2)} (Follow Trend)\n"
+        f"🛡️ Stop Loss: ${format_price(sl)}\n\n"
         f"⏰ Time: {now}\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"⚠️ ขยับ SL มาที่ทุนเมื่อราคาแตะ TP1"

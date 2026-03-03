@@ -140,11 +140,22 @@ class LineNotifier {
     const techScore = typeof signalData.technicalProb === 'number'
       ? (signalData.technicalProb * 100).toFixed(2) : conf;
 
+    const pairName = signalData.symbol || signalData.pairCode || 'Unknown';
+
     // Use custom message from model if available (e.g. for Crypto)
     const message = signalData.message || (() => {
-      const tp = signalData.tp ? `$${Number(signalData.tp).toFixed(2)}` : 'N/A';
-      const sl = signalData.sl ? `$${Number(signalData.sl).toFixed(2)}` : 'N/A';
-      const price = signalData.price ? `$${Number(signalData.price).toFixed(2)}` : 'N/A';
+      const formatPrice = (p) => {
+        const val = Number(p);
+        if (isNaN(val) || val === 0) return 'N/A';
+        if (val >= 100) return `$${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (val >= 1) return `$${val.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
+        if (val >= 0.0001) return `$${val.toFixed(6)}`;
+        return `$${val.toFixed(8)}`;
+      };
+
+      const tp = formatPrice(signalData.tp);
+      const sl = formatPrice(signalData.sl);
+      const price = formatPrice(signalData.price);
       const newsLine = isXAUUSD
         ? `📰 News Score: ${signalData.newsScore ? (signalData.newsScore * 100).toFixed(2) : '0.00'}%\n`
         : '';
