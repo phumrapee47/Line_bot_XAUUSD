@@ -21,11 +21,14 @@ class TradingSignalService {
   }
 
   calculateCombinedScore(technicalProb, newsScore) {
-    const combined = 
-      config.models.technicalWeight * technicalProb +
-      config.models.newsWeight * newsScore;
+    const tProb = (typeof technicalProb === 'number') ? technicalProb : 0.5;
+    const nScore = (typeof newsScore === 'number') ? newsScore : 0.5;
     
-    logger.info(`Combined score: ${combined.toFixed(4)} (Tech: ${technicalProb.toFixed(4)}, News: ${newsScore.toFixed(4)})`);
+    const combined = 
+      config.models.technicalWeight * tProb +
+      config.models.newsWeight * nScore;
+    
+    logger.info(`Combined score: ${combined.toFixed(4)} (Tech: ${tProb.toFixed(4)}, News: ${nScore.toFixed(4)})`);
     return combined;
   }
 
@@ -45,7 +48,7 @@ class TradingSignalService {
 
       const [technical, news] = await Promise.allSettled([
         this.withTimeout(technicalAnalysis.analyze(pairCode), 60000),
-        pairCode === 'XAUUSD' ? this.withTimeout(newsAnalysis.analyze(), 60000) : Promise.resolve({ value: { score: 0.5 } })
+        pairCode === 'XAUUSD' ? this.withTimeout(newsAnalysis.analyze(), 60000) : Promise.resolve({ score: 0.5 })
       ]);
 
       if (technical.status === 'rejected') {
@@ -54,29 +57,50 @@ class TradingSignalService {
       }
 
       const technicalData = technical.value;
-      const newsData = news.status === 'fulfilled' ? news.value : { score: 0.5 };
+      const isXAUUSD = pairCode === 'XAUUSD';
+      
+      let combinedScore;
+      let newsScore = 0.5; // Default neutral score
 
-      const combinedScore = this.calculateCombinedScore(
-        technicalData.probability,
-        newsData.score
-      );
+      if (isXAUUSD) {
+        const newsData = news.status === 'fulfilled' ? news.value : { score: 0.5 };
+        newsScore = newsData.score;
+        combinedScore = this.calculateCombinedScore(
+          technicalData.probability,
+          newsScore
+        );
+      } else {
+        // For Crypto, ignore news entirely
+        combinedScore = technicalData.probability;
+        logger.info(`Combined score for ${pairCode}: ${combinedScore.toFixed(4)} (Technical Only)`);
+      }
 
-      const signal = this.determineSignal(combinedScore);
+      let signal = this.determineSignal(combinedScore);
+      let confidence = combinedScore;
+
+      // For non-XAUUSD, try to use values directly from technical analysis if they are high-confidence
+      if (!isXAUUSD && technicalData.signal && technicalData.signal !== '⚪ HOLD') {
+        signal = technicalData.signal;
+        confidence = technicalData.confidence / 100; // Normalize to 0-1 range to match system
+      }
 
       const signalData = {
         pairCode: pairCode,
         signal: signal,
-        confidence: combinedScore,
+        confidence: confidence,
         technicalProb: technicalData.probability,
-        newsScore: newsData.score,
+        newsScore: isXAUUSD ? newsScore : null,
         price: technicalData.price,
-        tp: technicalData.tp,
+        tp: technicalData.tp1 || technicalData.tp,  // Support both tp1 (crypto) and tp (xauusd)
+        tp2: technicalData.tp2 || null,
         sl: technicalData.sl,
         source: technicalData.source || 'live',
-        timestamp: new Date().toLocaleString('th-TH')
+        timestamp: new Date().toLocaleString('th-TH'),
+        message: technicalData.message // Pass through custom message from Python if available
       };
 
-      logger.info(`✓ Signal generated for ${pairCode}: ${signal} at $${signalData.price.toFixed(2)}`);
+      const priceFormatted = typeof signalData.price === 'number' ? signalData.price.toFixed(2) : 'N/A';
+      logger.info(`✓ Signal generated for ${pairCode}: ${signal} at $${priceFormatted}`);
       return signalData;
     } catch (error) {
       logger.error(`Error generating signal for ${pairCode}: ${error.message}`);

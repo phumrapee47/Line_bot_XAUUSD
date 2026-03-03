@@ -48,10 +48,15 @@ class PythonBridge {
       // Mapping pairCode to model script
       const modelMapping = {
         'XAUUSD': 'xauusdmodel/technical_model.py',
-        // 'BTCUSD': 'crypto_model.py', // Future models
+        // Generic fallback for any other symbol to use the crypto script
+        'DEFAULT_CRYPTO': 'cryptomodel/technical_model.py'
       };
 
-      const scriptName = modelMapping[pairCode] || 'technical_model.py';
+      let scriptName = modelMapping[pairCode];
+      if (!scriptName) {
+        // If it's a crypto pair (like BTCUSDT or BTC), use the crypto model
+        scriptName = modelMapping['DEFAULT_CRYPTO'];
+      }
       const scriptPath = path.join(__dirname, '../../../ml-models', scriptName);
       
       logger.info(`Running technical analysis script for ${pairCode}: ${scriptPath}`);

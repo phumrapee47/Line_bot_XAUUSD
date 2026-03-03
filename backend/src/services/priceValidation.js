@@ -15,13 +15,15 @@ const logger = require('../utils/logger');
 
 class PriceValidationService {
   constructor() {
-    this.lastValidPrice = null;
-    this.lastValidTP = null;
-    this.lastValidSL = null;
-    this.lastPriceTime = null;
-    this.priceChangeThreshold = 0.15; // 15% max change between signals
-    this.minPrice = 1000;
-    this.maxPrice = 10000;
+    this.priceCache = {}; // Object indexed by pairCode
+    this.priceChangeThreshold = 0.50; // increased to 50% for crypto flexibility
+    
+    // Default ranges
+    this.ranges = {
+      'XAUUSD': { min: 1000, max: 10000 },
+      'DEFAULT': { min: 0.0000001, max: 10000000 }
+    };
+    
     this.cachePath = path.join(__dirname, '../../data/price_cache.json');
     
     // Load cached prices on startup
@@ -35,14 +37,8 @@ class PriceValidationService {
     try {
       if (fs.existsSync(this.cachePath)) {
         const data = fs.readFileSync(this.cachePath, 'utf8');
-        const cache = JSON.parse(data);
-        
-        this.lastValidPrice = cache.price;
-        this.lastValidTP = cache.tp;
-        this.lastValidSL = cache.sl;
-        this.lastPriceTime = cache.timestamp;
-        
-        logger.info(`✓ Loaded cached prices: $${this.lastValidPrice} from ${this.lastPriceTime}`);
+        this.priceCache = JSON.parse(data);
+        logger.info(`✓ Loaded price cache for ${Object.keys(this.priceCache).length} pairs`);
       }
     } catch (error) {
       logger.warn(`Could not load price cache: ${error.message}`);
@@ -52,46 +48,50 @@ class PriceValidationService {
   /**
    * Save current prices to cache
    */
-  savePriceCache(price, tp, sl) {
+  savePriceCache(pairCode, price, tp, sl) {
     try {
       const cacheDir = path.dirname(this.cachePath);
       if (!fs.existsSync(cacheDir)) {
         fs.mkdirSync(cacheDir, { recursive: true });
       }
 
-      const cache = {
+      this.priceCache[pairCode] = {
         price: price,
         tp: tp,
         sl: sl,
         timestamp: new Date().toISOString()
       };
 
-      fs.writeFileSync(this.cachePath, JSON.stringify(cache, null, 2));
-      this.lastValidPrice = price;
-      this.lastValidTP = tp;
-      this.lastValidSL = sl;
-      this.lastPriceTime = new Date().toISOString();
+      fs.writeFileSync(this.cachePath, JSON.stringify(this.priceCache, null, 2));
     } catch (error) {
       logger.error(`Could not save price cache: ${error.message}`);
     }
   }
 
   /**
+   * Get range for a pair
+   */
+  getRange(pairCode) {
+    return this.ranges[pairCode] || this.ranges['DEFAULT'];
+  }
+
+  /**
    * Validate price is within acceptable range
    */
-  isValidPrice(price) {
+  isValidPrice(pairCode, price) {
     if (typeof price !== 'number') {
-      logger.warn(`⚠️ Invalid price type: ${typeof price}`);
+      logger.warn(`⚠️ [${pairCode}] Invalid price type: ${typeof price}`);
       return false;
     }
 
     if (price <= 0 || price === null || price === undefined) {
-      logger.warn(`⚠️ Invalid price value: ${price} (must be > 0)`);
+      logger.warn(`⚠️ [${pairCode}] Invalid price value: ${price} (must be > 0)`);
       return false;
     }
 
-    if (price < this.minPrice || price > this.maxPrice) {
-      logger.warn(`⚠️ Price out of range: $${price} (expected $${this.minPrice}-$${this.maxPrice})`);
+    const range = this.getRange(pairCode);
+    if (price < range.min || price > range.max) {
+      logger.warn(`⚠️ [${pairCode}] Price out of range: $${price} (expected $${range.min}-$${range.max})`);
       return false;
     }
 
@@ -101,15 +101,16 @@ class PriceValidationService {
   /**
    * Detect anomalous price changes
    */
-  isAnomalousChange(newPrice) {
-    if (!this.lastValidPrice) {
-      return false; // First price, can't compare
+  isAnomalousChange(pairCode, newPrice) {
+    const cached = this.priceCache[pairCode];
+    if (!cached || !cached.price) {
+      return false; // First price for this pairCode, can't compare
     }
 
-    const changePercent = Math.abs((newPrice - this.lastValidPrice) / this.lastValidPrice);
+    const changePercent = Math.abs((newPrice - cached.price) / cached.price);
 
     if (changePercent > this.priceChangeThreshold) {
-      logger.warn(`⚠️ Anomalous price change detected: $${this.lastValidPrice} → $${newPrice} (${(changePercent * 100).toFixed(2)}%)`);
+      logger.warn(`⚠️ [${pairCode}] Anomalous price change detected: $${cached.price} → $${newPrice} (${(changePercent * 100).toFixed(2)}%)`);
       return true;
     }
 
@@ -119,7 +120,7 @@ class PriceValidationService {
   /**
    * Validate complete price data object
    */
-  validatePriceData(priceData) {
+  validatePriceData(pairCode, priceData) {
     const result = {
       isValid: true,
       errors: [],
@@ -137,29 +138,20 @@ class PriceValidationService {
     const { price, tp, sl, probability } = priceData;
 
     // Validate price
-    if (!this.isValidPrice(price)) {
+    if (!this.isValidPrice(pairCode, price)) {
       result.isValid = false;
       result.errors.push(`Invalid price: $${price}`);
     }
 
     // Validate TP and SL are reasonable
-    if (typeof tp !== 'number' || tp <= 0) {
-      result.errors.push(`Invalid TP: $${tp}`);
+    if (typeof tp !== 'number') {
+      result.errors.push(`Invalid TP: ${tp}`);
       result.isValid = false;
     }
 
-    if (typeof sl !== 'number' || sl <= 0) {
-      result.errors.push(`Invalid SL: $${sl}`);
+    if (typeof sl !== 'number') {
+      result.errors.push(`Invalid SL: ${sl}`);
       result.isValid = false;
-    }
-
-    // Check TP is above price (for buy) or below (for sell)
-    if (tp <= price && tp > 0) {
-      result.warnings.push(`TP ($${tp}) is not above price ($${price})`);
-    }
-
-    if (sl >= price && sl > 0) {
-      result.warnings.push(`SL ($${sl}) is not below price ($${price})`);
     }
 
     // Validate probability
@@ -169,8 +161,12 @@ class PriceValidationService {
     }
 
     // Check for anomalies
-    if (this.isAnomalousChange(price)) {
+    if (this.isAnomalousChange(pairCode, price)) {
       result.warnings.push('Anomalous price change detected');
+      // If crypto, we might allow it anyway but flag it
+      if (pairCode === 'XAUUSD') {
+        result.isValid = false; // Be strict with Gold
+      }
     }
 
     return result;
@@ -179,12 +175,12 @@ class PriceValidationService {
   /**
    * Get price with fallback - use cache if current is invalid
    */
-  getPriceWithFallback(priceData) {
-    const validation = this.validatePriceData(priceData);
+  getPriceWithFallback(pairCode, priceData) {
+    const validation = this.validatePriceData(pairCode, priceData);
 
     if (validation.isValid) {
       // All good, save and return
-      this.savePriceCache(priceData.price, priceData.tp, priceData.sl);
+      this.savePriceCache(pairCode, priceData.price, priceData.tp, priceData.sl);
       return {
         ...priceData,
         source: 'live',
@@ -192,25 +188,26 @@ class PriceValidationService {
       };
     }
 
-    // Invalid - check if we have cached price
-    if (this.lastValidPrice && this.lastValidPrice > 0) {
-      logger.warn(`⚠️ Current price invalid, using cached price: $${this.lastValidPrice}`);
+    // Invalid - check if we have cached price for THIS pair
+    const cached = this.priceCache[pairCode];
+    if (cached && cached.price > 0) {
+      logger.warn(`⚠️ [${pairCode}] Current price invalid, using cached price: $${cached.price}`);
       
       return {
-        price: this.lastValidPrice,
-        tp: this.lastValidTP,
-        sl: this.lastValidSL,
+        price: cached.price,
+        tp: cached.tp,
+        sl: cached.sl,
         probability: priceData.probability || 0.5,
         source: 'cached',
         isValid: false,
         errors: validation.errors,
         warnings: validation.warnings,
-        cachedAt: this.lastPriceTime
+        cachedAt: cached.timestamp
       };
     }
 
     // No fallback available - return invalid but log clearly
-    logger.error(`❌ CRITICAL: No valid price available`);
+    logger.error(`❌ [${pairCode}] CRITICAL: No valid price available`);
     logger.error(`   Errors: ${validation.errors.join(', ')}`);
 
     return {
@@ -227,13 +224,9 @@ class PriceValidationService {
    */
   getStatus() {
     return {
-      lastValidPrice: this.lastValidPrice,
-      lastValidTP: this.lastValidTP,
-      lastValidSL: this.lastValidSL,
-      lastPriceTime: this.lastPriceTime,
-      hasCachedPrice: this.lastValidPrice !== null,
-      minPrice: this.minPrice,
-      maxPrice: this.maxPrice,
+      cacheSize: Object.keys(this.priceCache).length,
+      pairs: Object.keys(this.priceCache),
+      ranges: this.ranges,
       priceChangeThreshold: this.priceChangeThreshold
     };
   }

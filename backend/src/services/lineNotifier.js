@@ -133,23 +133,35 @@ class LineNotifier {
       return false;
     }
 
-    const pairName = signalData.pairName || (signalData.pairCode === 'XAUUSD' ? 'Gold' : signalData.pairCode);
-    const message = `
-🔔 ${pairName} Trading Signal 🔔
-━━━━━━━━━━━━━━━━━━
-Signal: ${signalData.signal}
-Confidence: ${(signalData.confidence * 100).toFixed(2)}%
+    const isXAUUSD = signalData.pairCode === 'XAUUSD';
+    const conf = typeof signalData.confidence === 'number'
+      ? (signalData.confidence > 1 ? signalData.confidence : signalData.confidence * 100).toFixed(2)
+      : '0.00';
+    const techScore = typeof signalData.technicalProb === 'number'
+      ? (signalData.technicalProb * 100).toFixed(2) : conf;
 
-📊 Technical Score: ${(signalData.technicalProb * 100).toFixed(2)}%
-📰 News Score: ${(signalData.newsScore * 100).toFixed(2)}%
-
-💰 Current Price: $${signalData.price.toFixed(2)}
-🎯 Take Profit: $${signalData.tp.toFixed(2)}
-🛡️ Stop Loss: $${signalData.sl.toFixed(2)}
-
-⏰ Time: ${signalData.timestamp}
-━━━━━━━━━━━━━━━━━━
-    `.trim();
+    // Use custom message from model if available (e.g. for Crypto)
+    const message = signalData.message || (() => {
+      const tp = signalData.tp ? `$${Number(signalData.tp).toFixed(2)}` : 'N/A';
+      const sl = signalData.sl ? `$${Number(signalData.sl).toFixed(2)}` : 'N/A';
+      const price = signalData.price ? `$${Number(signalData.price).toFixed(2)}` : 'N/A';
+      const newsLine = isXAUUSD
+        ? `📰 News Score: ${signalData.newsScore ? (signalData.newsScore * 100).toFixed(2) : '0.00'}%\n`
+        : '';
+      return (
+`🔔 ${pairName} Trading Signal 🔔\n` +
+`━━━━━━━━━━━━━━━━━━\n` +
+`Signal: ${signalData.signal}\n` +
+`Confidence: ${conf}%\n\n` +
+`📊 Technical Score: ${techScore}%\n` +
+newsLine +
+`\n💰 Entry: ${price}\n` +
+`🎯 Take Profit: ${tp}\n` +
+`🛡️ Stop Loss: ${sl}\n\n` +
+`⏰ Time: ${signalData.timestamp}\n` +
+`━━━━━━━━━━━━━━━━━━`
+      );
+    })();
 
     if (userIds && userIds.length > 0) {
       return await this.sendToMultipleUsers(message, userIds);

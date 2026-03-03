@@ -141,13 +141,28 @@ app.listen(config.server.port, () => {
   lineNotifier.sendMessage(startupMsg).catch(e => logger.error(`Error sending LINE startup message: ${e.message}`));
   telegramNotifier.sendMessage(startupMsg).catch(e => logger.error(`Error sending Telegram startup message: ${e.message}`));
 
-  // Schedule cron job
-  cron.schedule(config.scheduler.cronExpression, async () => {
-    logger.info('Scheduled check triggered');
-    await tradingSignal.processSignal();
+  // --- Multi-Timeframe Scheduling System ---
+  
+  const schedules = [
+    { cron: '*/5 * * * *', symbols: ['EGLD/USDT', 'ONE/USDT'], label: '5m' },
+    { cron: '*/15 * * * *', symbols: ['BTC/USDT', 'ETH/USDT', 'BNB/USDT'], label: '15m' },
+    { cron: '*/30 * * * *', symbols: ['AVAX/USDT'], label: '30m' },
+    { cron: '0 * * * *', symbols: ['XAUUSD', 'MATIC/USDT'], label: '1h' },
+    { cron: '0 */4 * * *', symbols: ['SOL/USDT', 'FTM/USDT'], label: '4h' }
+  ];
+
+  schedules.forEach(group => {
+    cron.schedule(group.cron, async () => {
+      logger.info(`⏰ [${group.label}] Scheduled check triggered for: ${group.symbols.join(', ')}`);
+      for (const symbol of group.symbols) {
+        await tradingSignal.processSignal(symbol).catch(e => 
+          logger.error(`Error in scheduled check for ${symbol}: ${e.message}`)
+        );
+      }
+    });
   });
 
-  logger.info(`Scheduled to run every ${config.scheduler.checkInterval} minutes`);
+  logger.info(`✅ Multi-timeframe scheduler initialized for ${schedules.length} frequency groups`);
 });
 
 // Graceful shutdown

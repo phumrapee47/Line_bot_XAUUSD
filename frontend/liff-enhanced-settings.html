@@ -231,36 +231,96 @@
                 </div>
             </div>
 
-            <div v-if="activeTab === 'pairs'" class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">📊 เลือกคู่เงินที่ต้องการติดตาม</h2>
+            <!-- Tab 1: Trading Pairs -->
+            <div v-if="activeTab === 'pairs'" class="space-y-4">
 
-                <div v-if="availablePairs.length === 0" class="text-center py-8 text-gray-500">
-                    <p>ไม่มีคู่เงินที่พร้อมใช้ (กำลังโหลดจากฐานข้อมูล...)</p>
+                <!-- User Tier Banner -->
+                <div v-if="!isPremiumUser"
+                    class="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-center gap-3">
+                    <span class="text-2xl">🔒</span>
+                    <div class="flex-1">
+                        <p class="font-bold text-amber-800 text-sm">Free Tier – รับสัญญาณได้เฉพาะ XAUUSD</p>
+                        <p class="text-amber-700 text-xs mt-0.5">อัปเกรดเป็น Premium เพื่อเลือกสัญญาณ Crypto
+                            ได้ครบทุกคู่</p>
+                    </div>
+                    <span class="text-xs font-bold bg-amber-200 text-amber-800 px-2 py-1 rounded-full">Free</span>
+                </div>
+                <div v-else class="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3">
+                    <span class="text-xl">💎</span>
+                    <p class="text-green-800 text-sm font-semibold">Premium – เลือกสัญญาณได้ทุกคู่</p>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <div v-for="pair in availablePairs" :key="pair.id"
-                        class="border border-gray-300 rounded-lg p-4 hover:shadow-md transition cursor-pointer"
-                        @click="togglePair(pair.id)">
-                        <div class="flex items-start gap-3">
-                            <input type="checkbox" :id="`pair-${pair.id}`" v-model="selectedPairs" :value="pair.id"
-                                class="mt-1 w-5 h-5 accent-green-500">
-                            <label :for="`pair-${pair.id}`" class="flex-1 cursor-pointer">
-                                <div class="font-semibold text-gray-800">{{ pair.pairCode }}</div>
-                                <div class="text-sm text-gray-600">{{ pair.pairName }}</div>
-                            </label>
-                            <div v-if="isSelected(pair.id)" class="text-green-500 font-bold">✓</div>
-                        </div>
+                <!-- Category Filter Tabs -->
+                <div class="bg-white rounded-xl shadow-sm p-1 flex gap-1">
+                    <button
+                        v-for="f in [{key:'all',label:'🌐 ทั้งหมด'},{key:'forex',label:'💱 Forex'},{key:'crypto',label:'🪙 Crypto'}]"
+                        :key="f.key" @click="pairFilter = f.key" :class="`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition ${
+                            pairFilter === f.key
+                                ? 'bg-green-500 text-white shadow'
+                                : 'text-gray-500 hover:bg-gray-100'
+                        }`">
+                        {{ f.label }}
+                    </button>
+                </div>
 
-                        <!-- Per-pair settings (REMOVED: thresholds now managed by AI) -->
+                <!-- Pairs List -->
+                <div class="bg-white rounded-xl shadow-sm p-4">
+                    <div v-if="filteredPairs.length === 0" class="text-center py-8 text-gray-400">
+                        <p>ไม่มีคู่เงินในหมวดนี้</p>
+                    </div>
+                    <div class="space-y-3">
+                        <div v-for="pair in filteredPairs" :key="pair.id" :class="`border rounded-xl p-4 transition ${
+                                !isPairAllowed(pair)
+                                    ? 'border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed'
+                                    : isSelected(pair.id)
+                                        ? 'border-green-400 bg-green-50 cursor-pointer'
+                                        : 'border-gray-200 hover:border-gray-300 cursor-pointer'
+                            }`" @click="togglePair(pair.id)">
+                            <div class="flex items-center gap-3">
+                                <!-- Checkbox or Lock -->
+                                <div class="flex-shrink-0">
+                                    <span v-if="!isPairAllowed(pair)" class="text-xl">🔒</span>
+                                    <div v-else :class="`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                            isSelected(pair.id) ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                                        }`">
+                                        <svg v-if="isSelected(pair.id)" class="w-3 h-3 text-white" fill="none"
+                                            stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                                d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                <!-- Pair Info -->
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-gray-800">{{ pair.pairCode }}</span>
+                                        <span :class="`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                            pair.assetType === 'crypto'
+                                                ? 'bg-purple-100 text-purple-700'
+                                                : 'bg-blue-100 text-blue-700'
+                                        }`">{{ pair.assetType === 'crypto' ? '🪙 Crypto' : '💱 Forex' }}</span>
+                                    </div>
+                                    <div class="text-sm text-gray-500">{{ pair.pairName }}</div>
+                                </div>
+
+                                <!-- Status -->
+                                <div class="flex-shrink-0 text-right">
+                                    <span v-if="!isPairAllowed(pair)" class="text-xs text-gray-400">Premium Only</span>
+                                    <span v-else-if="isSelected(pair.id)"
+                                        class="text-xs font-bold text-green-600">รับสัญญาณ</span>
+                                    <span v-else class="text-xs text-gray-400">ปิดอยู่</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Summary -->
-                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
                     <p class="text-sm text-blue-700">
                         <strong>✓ เลือกแล้ว:</strong>
-                        <span class="font-bold">{{ selectedPairs.length }} / {{ availablePairs.length }}</span> คู่เงิน
+                        <span class="font-bold"> {{ selectedPairs.length }} / {{ availablePairs.length }}</span> คู่เงิน
                     </p>
                 </div>
             </div>
@@ -479,6 +539,7 @@
                     // Trading Pairs
                     availablePairs: [],
                     selectedPairs: [],
+                    pairFilter: 'all', // 'all' | 'forex' | 'crypto'
                     pairSettings: {}, // { pairId: { buyThreshold, sellThreshold } }
 
                     // Notifications
@@ -518,8 +579,23 @@
                     loadingStatus: 'กำลังเริ่มระบบ...',
                     loadingError: false,
                     saving: false,
+                    checking: false,
                     message: { text: '', type: '' }
                 };
+            },
+
+            computed: {
+                isPremiumUser() {
+                    return this.subscriptionType === 'subscription';
+                },
+                filteredPairs() {
+                    if (this.pairFilter === 'forex') {
+                        return this.availablePairs.filter(p => p.assetType !== 'crypto');
+                    } else if (this.pairFilter === 'crypto') {
+                        return this.availablePairs.filter(p => p.assetType === 'crypto');
+                    }
+                    return this.availablePairs;
+                }
             },
 
             mounted() {
@@ -888,8 +964,30 @@
                     }
                 },
 
+                isPairAllowed(pair) {
+                    if (!pair) return false;
+                    // Free tier: only XAUUSD allowed
+                    if (!this.isPremiumUser && pair.pairCode !== 'XAUUSD') return false;
+                    return true;
+                },
+
                 isSelected(pairId) {
                     return this.selectedPairs.includes(pairId);
+                },
+
+                togglePair(pairId) {
+                    // Find the pair object to check tier restriction
+                    const pair = this.availablePairs.find(p => p.id === pairId);
+                    if (pair && !this.isPairAllowed(pair)) {
+                        this.showMessage('🔒 ฟีเจอร์นี้สำหรับ Premium เท่านั้น – อัปเกรดเพื่อรับสัญญาณ Crypto', 'error');
+                        return;
+                    }
+                    const idx = this.selectedPairs.indexOf(pairId);
+                    if (idx === -1) {
+                        this.selectedPairs.push(pairId);
+                    } else {
+                        this.selectedPairs.splice(idx, 1);
+                    }
                 },
 
                 getPairSettings(pairId) {
@@ -900,6 +998,28 @@
                         };
                     }
                     return this.pairSettings[pairId];
+                },
+
+                async runManualCheck() {
+                    if (!this.selectedAnalysisPair) return;
+                    this.checking = true;
+                    try {
+                        const response = await this.fetchWithTimeout(
+                            `${this.getBackendUrl()}/api/trading/check/${this.selectedAnalysisPair.pairCode}`,
+                            { method: 'POST', timeout: 90000 }
+                        );
+                        const data = await response.json();
+                        if (data.success) {
+                            this.showMessage('✅ วิเคราะห์เสร็จสิ้น!', 'success');
+                            this.fetchSignalHistory(this.selectedAnalysisPair.pairCode);
+                        } else {
+                            this.showMessage(`เกิดข้อผิดพลาด: ${data.error || 'Unknown'}`, 'error');
+                        }
+                    } catch (error) {
+                        this.showMessage(`ไม่สามารถวิเคราะห์ได้: ${error.message}`, 'error');
+                    } finally {
+                        this.checking = false;
+                    }
                 },
 
                 async saveSettings() {

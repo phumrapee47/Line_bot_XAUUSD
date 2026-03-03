@@ -53,26 +53,33 @@ class TechnicalAnalysisService {
         );
       });
 
-      // Validate the result
+      // Validate the result - use tp1 for crypto, tp for XAUUSD
+      const isXAUUSD = pairCode === 'XAUUSD';
       const priceData = {
         price: result.price,
-        tp: result.tp,
+        tp: isXAUUSD ? result.tp : (result.tp1 || result.tp || result.price), // Use tp1 for crypto
         sl: result.sl,
         probability: result.probability
       };
 
       // Use validation service to check and fallback if needed
-      // (Assuming priceValidation supports pair-specific caching or we just use general fallback)
-      const validatedPrice = priceValidation.getPriceWithFallback(priceData);
+      const validatedPrice = priceValidation.getPriceWithFallback(pairCode, priceData);
 
       return {
         pairCode: pairCode,
         probability: validatedPrice.probability,
         price: validatedPrice.price,
-        tp: validatedPrice.tp,
-        sl: validatedPrice.sl,
+        tp: isXAUUSD ? validatedPrice.tp : (result.tp1 || result.tp), // Preserve tp1 for crypto
+        tp1: result.tp1 || null,
+        tp2: result.tp2 || null,
+        sl: result.sl || validatedPrice.sl,
         source: validatedPrice.source,
-        isValid: validatedPrice.isValid
+        isValid: validatedPrice.isValid,
+        // Pass through fields from Python model (for Crypto)
+        signal: result.signal || null,
+        confidence: result.confidence || null,
+        score: result.score || null,
+        message: result.message || null
       };
     } catch (error) {
       logger.error(`❌ Technical analysis for ${pairCode} failed: ${error.message}`);

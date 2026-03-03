@@ -112,13 +112,25 @@ router.post('/users/:userId/settings', async (req, res) => {
 
     // Update trading pairs
     if (tradingPairs && Array.isArray(tradingPairs)) {
+      // --- Server-side tier enforcement ---
+      const user_subscription = user.subscriptionType || 'unsubscription';
+      let filteredPairs = tradingPairs;
+
+      if (user_subscription !== 'subscription') {
+        // Free tier: only allow XAUUSD
+        const xauusdPair = await TradingPair.findOne({ where: { pairCode: 'XAUUSD' } });
+        const allowedIds = xauusdPair ? [xauusdPair.id] : [];
+        filteredPairs = tradingPairs.filter(p => allowedIds.includes(p.tradingPairId || p.pairId));
+        logger.info(`[Tier] Free-tier user ${userId}: filtered to ${filteredPairs.length}/${tradingPairs.length} pairs`);
+      }
+
       // Remove old selections
       await UserTradingPair.destroy({
         where: { userId: user.id }
       });
 
       // Add new selections
-      for (const pair of tradingPairs) {
+      for (const pair of filteredPairs) {
         await UserTradingPair.create({
           userId: user.id,
           pairId: pair.tradingPairId || pair.pairId,
