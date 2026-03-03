@@ -13,15 +13,12 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 # Optimized timeframe mapping from backtest results
 OPTIMIZED_TIMEFRAMES = {
-    'AVAX/USDT': '30m',
     'BNB/USDT': '15m',
     'BTC/USDT': '15m',
-    'EGLD/USDT': '5m',
     'ETH/USDT': '15m',
-    'FTM/USDT': '4h',
-    'MATIC/USDT': '1h',
-    'ONE/USDT': '5m',
-    'SOL/USDT': '4h'
+    'SOL/USDT': '1h',
+    'DOGE/USDT': '1h',
+    'XRP/USDT': '5m',
 }
 
 DEFAULT_TIMEFRAME = '30m'

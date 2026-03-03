@@ -816,7 +816,7 @@
                         // Crypto pairs like BTC/USDT -> BINANCE:BTCUSD
                         // User noted TradingView uses symbol without the 'T' (USD instead of USDT)
                         const cleanSymbol = pairCode.replace('/USDT', 'USD').replace('/', '');
-                        symbol = `BINANCE:${cleanSymbol}`;
+                        symbol = `CRYPTO:${cleanSymbol}`;
                     } else {
                         symbol = `FX_IDC:${pairCode}`;
                     }
