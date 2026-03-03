@@ -296,9 +296,12 @@ router.get('/analysis/daily/:pairCode', async (req, res) => {
 
     const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
     
-    // For now, we only have analysis for XAUUSD.
-    if (pairCode !== 'XAUUSD') {
-      return res.status(404).json({ success: false, error: 'Analysis not available for this pair' });
+    // Check if the summary actually matches the requested pair
+    // Note: Currently the pipeline might only generate for XAUUSD, but we want the API to be generic.
+    if (summary.pairCode && summary.pairCode !== pairCode) {
+      // If we have a pairCode in the summary and it's not the one requested, return 404
+      // This handles cases where we have a summary but it's for a different pair.
+      return res.status(404).json({ success: false, error: `Analysis for ${pairCode} not ready yet` });
     }
 
     // --- Automatic Supabase Sync ---

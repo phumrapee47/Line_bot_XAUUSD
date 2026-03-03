@@ -810,7 +810,8 @@
                     this.dailyAnalysisLoading = true;
                     this.dailyAnalysis = null;
                     try {
-                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/analysis/daily/${pairCode}`, { timeout: 10000 });
+                        const encodedPair = encodeURIComponent(pairCode);
+                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/analysis/daily/${encodedPair}`, { timeout: 10000 });
                         const data = await response.json();
                         if (data.success) {
                             this.dailyAnalysis = data.data;
@@ -826,7 +827,8 @@
                     this.signalsLoading = true;
                     this.signals = [];
                     try {
-                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/analysis/signals/${pairCode}`, { timeout: 10000 });
+                        const encodedPair = encodeURIComponent(pairCode);
+                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/analysis/signals/${encodedPair}`, { timeout: 10000 });
                         const data = await response.json();
                         if (data.success) {
                             this.signals = data.data;
@@ -1053,8 +1055,9 @@
                     if (!this.selectedAnalysisPair) return;
                     this.checking = true;
                     try {
+                        const encodedPair = encodeURIComponent(this.selectedAnalysisPair.pairCode);
                         const response = await this.fetchWithTimeout(
-                            `${this.getBackendUrl()}/api/trading/check/${this.selectedAnalysisPair.pairCode}`,
+                            `${this.getBackendUrl()}/api/trading/check/${encodedPair}`,
                             { method: 'POST', timeout: 90000 }
                         );
                         const data = await response.json();
