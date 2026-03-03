@@ -161,11 +161,12 @@ class TradingSignalService {
       } catch (dbError) {
         logger.error(`Error saving signal to DB: ${dbError.message}`);
       }
-
-      this.lastSignals[pairCode] = currentSignal;
     } else {
       logger.info(`No broadcast for ${pairCode}: Signal is ${currentSignal}${hasChanged ? '' : ' (no change)'}`);
     }
+
+    // ALWAYS update the state so we can detect changes from HOLD back to BUY/SELL
+    this.lastSignals[pairCode] = currentSignal;
 
     return signalData;
   }
