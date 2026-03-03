@@ -7,8 +7,7 @@ const logger = require('../utils/logger');
 
 class TradingSignalService {
   constructor() {
-    this.lastSignal = 'HOLD';
-    this.lastSignalTime = null;
+    this.lastSignals = {}; // Per-pair signal tracking: { 'XAUUSD': 'HOLD', 'BTC/USDT': 'SELL' }
   }
 
   async withTimeout(promise, timeoutMs) {
@@ -120,11 +119,14 @@ class TradingSignalService {
     }
 
     const currentSignal = signalData.signal;
+    const lastSignal = this.lastSignals[pairCode] || '⚪ HOLD';
 
-    // Send notification only if signal changed or is BUY/SELL
-    // (Note: To simplify, we'll use a global lastSignal for now, should be per-pair in production)
-    if (currentSignal !== '⚪ HOLD') {
-      logger.info(`New signal detected for ${pairCode}: ${currentSignal}`);
+    // Broadcast if signal is BUY or SELL, AND it's different from the last signal for this pair
+    const isActionable = currentSignal !== '⚪ HOLD';
+    const hasChanged = currentSignal !== lastSignal;
+
+    if (isActionable && hasChanged) {
+      logger.info(`New signal detected for ${pairCode}: ${currentSignal} (was ${lastSignal})`);
       
       const userSettingsService = require('./userSettingsService');
       
@@ -138,8 +140,8 @@ class TradingSignalService {
       logger.info(`Targeting ${lineUserIds.length} LINE users and ${telegramUserIds.length} Telegram users for ${pairCode}`);
 
       // Send to targeted people
-      const lineSuccess = await lineNotifier.sendTradingSignal(signalData, lineUserIds);
-      const telegramSuccess = await telegramNotifier.sendTradingSignal(signalData, telegramUserIds);
+      await lineNotifier.sendTradingSignal(signalData, lineUserIds);
+      await telegramNotifier.sendTradingSignal(signalData, telegramUserIds);
       
       // Save signal to history
       try {
@@ -152,8 +154,7 @@ class TradingSignalService {
             confidence: signalData.confidence,
             price: signalData.price,
             tp: signalData.tp,
-            sl: signalData.sl,
-            timestamp: new Date()
+            sl: signalData.sl
           });
           logger.info(`Signal saved to history for ${pairCode}`);
         }
@@ -161,10 +162,9 @@ class TradingSignalService {
         logger.error(`Error saving signal to DB: ${dbError.message}`);
       }
 
-      this.lastSignal = currentSignal;
-      this.lastSignalTime = new Date();
+      this.lastSignals[pairCode] = currentSignal;
     } else {
-      logger.info(`Signal is HOLD for ${pairCode}: ${currentSignal}`);
+      logger.info(`No broadcast for ${pairCode}: Signal is ${currentSignal}${hasChanged ? '' : ' (no change)'}`);
     }
 
     return signalData;

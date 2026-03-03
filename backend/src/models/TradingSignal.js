@@ -18,8 +18,7 @@ const TradingSignal = sequelize.define('TradingSignal', {
   },
   signal: {
     type: DataTypes.STRING(20),
-    allowNull: false,
-    comment: 'BUY, SELL, or HOLD'
+    allowNull: false
   },
   confidence: {
     type: DataTypes.FLOAT,
@@ -36,15 +35,13 @@ const TradingSignal = sequelize.define('TradingSignal', {
   sl: {
     type: DataTypes.FLOAT,
     allowNull: true
-  },
-  timestamp: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
   }
 }, {
   tableName: 'trading_signals',
-  timestamps: false,
+  timestamps: true,
   underscored: true,
+  createdAt: 'timestamp',
+  updatedAt: false,
   indexes: [
     { fields: ['pair_id'] },
     { fields: ['timestamp'] }

@@ -89,7 +89,7 @@
             <div v-if="activeTab === 'analysis'" class="space-y-6">
                 <!-- Pair Selection for Analysis -->
                 <div class="bg-white rounded-lg shadow-md p-4 flex gap-2 overflow-x-auto no-scrollbar">
-                    <button v-for="pair in analysisPairs" :key="pair.id" @click="selectAnalysisPair(pair)"
+                    <button v-for="pair in filteredAnalysisPairs" :key="pair.id" @click="selectAnalysisPair(pair)"
                         :class="`px-4 py-2 rounded-full font-bold whitespace-nowrap transition ${selectedAnalysisPair?.id === pair.id ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`">
                         {{ pair.pairCode }}
                         <span v-if="isPairRestricted(pair)" class="ml-1 text-xs">🔒</span>
@@ -203,7 +203,7 @@
                                                 {{ sig.signal }}
                                             </span>
                                         </td>
-                                        <td class="py-3 px-2 font-mono text-sm">${{ sig.price?.toFixed(2) }}</td>
+                                        <td class="py-3 px-2 font-mono text-sm">{{ formatPrice(sig.price) }}</td>
                                         <td class="py-3 px-2 text-right">
                                             <div class="text-xs font-bold" :class="getConfidenceClass(sig.confidence)">
                                                 {{ (sig.confidence * 100).toFixed(1) }}%
@@ -595,6 +595,27 @@
                         return this.availablePairs.filter(p => p.assetType === 'crypto');
                     }
                     return this.availablePairs;
+                },
+                filteredAnalysisPairs() {
+                    // Only show selected pairs in analysis tab
+                    return this.availablePairs.filter(p => this.selectedPairs.includes(p.id));
+                }
+            },
+
+            watch: {
+                selectedPairs: {
+                    handler(newVal) {
+                        // If current analysis pair is no longer selected, switch to first available
+                        if (this.selectedAnalysisPair && !newVal.includes(this.selectedAnalysisPair.id)) {
+                            this.selectAnalysisPair(null);
+                        }
+                    },
+                    deep: true
+                },
+                activeTab(newTab) {
+                    if (newTab === 'analysis' && !this.selectedAnalysisPair) {
+                        this.selectAnalysisPair(null);
+                    }
                 }
             },
 
@@ -758,6 +779,16 @@
                 // --- Analysis Methods ---
 
                 selectAnalysisPair(pair) {
+                    if (!pair) {
+                        // Fallback to first available if none provided
+                        if (this.filteredAnalysisPairs.length > 0) {
+                            pair = this.filteredAnalysisPairs[0];
+                        } else {
+                            this.selectedAnalysisPair = null;
+                            return;
+                        }
+                    }
+
                     this.selectedAnalysisPair = pair;
 
                     if (!this.isPairRestricted(pair)) {
@@ -769,43 +800,7 @@
                     }
                 },
 
-                isPairRestricted(pair) {
-                    if (!pair) return false;
-                    // XAUUSD is free for everyone. Others require 'subscription' type.
-                    return pair.pairCode !== 'XAUUSD' && this.subscriptionType === 'unsubscription';
-                },
-
-                async fetchDailyAnalysis(pairCode) {
-                    this.dailyAnalysisLoading = true;
-                    this.dailyAnalysis = null;
-                    try {
-                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/analysis/daily/${pairCode}`, { timeout: 10000 });
-                        const data = await response.json();
-                        if (data.success) {
-                            this.dailyAnalysis = data.data;
-                        }
-                    } catch (error) {
-                        console.error('Error fetching daily analysis:', error);
-                    } finally {
-                        this.dailyAnalysisLoading = false;
-                    }
-                },
-
-                async fetchSignalHistory(pairCode) {
-                    this.signalsLoading = true;
-                    this.signals = [];
-                    try {
-                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/analysis/signals/${pairCode}`, { timeout: 10000 });
-                        const data = await response.json();
-                        if (data.success) {
-                            this.signals = data.data;
-                        }
-                    } catch (error) {
-                        console.error('Error fetching signal history:', error);
-                    } finally {
-                        this.signalsLoading = false;
-                    }
-                },
+                // ... (rest of methods)
 
                 initTradingView(pairCode) {
                     let symbol = pairCode;
@@ -813,25 +808,17 @@
                     if (pairCode === 'XAUUSD') {
                         symbol = 'OANDA:XAUUSD';
                     } else if (pairCode.includes('/')) {
-                        // Crypto pairs like BTC/USDT -> BINANCE:BTCUSD
-                        // User noted TradingView uses symbol without the 'T' (USD instead of USDT)
                         const cleanSymbol = pairCode.replace('/USDT', 'USD').replace('/', '');
                         symbol = `CRYPTO:${cleanSymbol}`;
                     } else {
                         symbol = `FX_IDC:${pairCode}`;
                     }
 
-                    if (this.tvWidget) {
-                        // If widget exists, just change the symbol
-                        // However, standard script embed doesn't support easy symbol change without reload
-                        // So we'll clear and recreate
-                        document.getElementById('tradingview_widget').innerHTML = '';
-                    }
+                    const createWidget = () => {
+                        if (document.getElementById('tradingview_widget')) {
+                            document.getElementById('tradingview_widget').innerHTML = '';
+                        }
 
-                    const script = document.createElement('script');
-                    script.src = 'https://s3.tradingview.com/tv.js';
-                    script.async = true;
-                    script.onload = () => {
                         new TradingView.widget({
                             "width": "100%",
                             "height": "100%",
@@ -847,7 +834,16 @@
                             "container_id": "tradingview_widget"
                         });
                     };
-                    document.head.appendChild(script);
+
+                    if (typeof TradingView !== 'undefined') {
+                        createWidget();
+                    } else {
+                        const script = document.createElement('script');
+                        script.src = 'https://s3.tradingview.com/tv.js';
+                        script.async = true;
+                        script.onload = createWidget;
+                        document.head.appendChild(script);
+                    }
                     this.tvWidget = true;
                 },
 
@@ -855,6 +851,15 @@
                     if (!timestamp) return '-';
                     const date = new Date(timestamp);
                     return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+                },
+
+                formatPrice(p) {
+                    const val = Number(p);
+                    if (isNaN(val) || val === 0) return 'N/A';
+                    if (val >= 100) return `$${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    if (val >= 1) return `$${val.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`;
+                    if (val >= 0.0001) return `$${val.toFixed(6)}`;
+                    return `$${val.toFixed(8)}`;
                 },
 
                 getSignalClass(signal) {
