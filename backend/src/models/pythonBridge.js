@@ -62,6 +62,12 @@ class PythonBridge {
       logger.info(`Running technical analysis script for ${pairCode}: ${scriptPath}`);
       
       const result = await this.runPythonScript(scriptPath, [pairCode]);
+      
+      if (result.status === 'error') {
+        logger.error(`❌ Python model reported error for ${pairCode}: ${result.message}`);
+        throw new Error(result.message);
+      }
+      
       logger.info(`Technical analysis completed for ${pairCode}: prob=${result.probability}, price=${result.price}`);
       return result;
     } catch (error) {

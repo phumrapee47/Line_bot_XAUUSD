@@ -244,7 +244,16 @@ def analyze_symbol(symbol):
         df = fetch_data(full_symbol, timeframe)
         df = add_indicators(df)
 
-        X, y = create_features_targets(df, horizon=5, threshold=0.005)
+        # Lower threshold or better yet, don't filter out so much if data is scarce
+        X, y = create_features_targets(df, horizon=5, threshold=0.001) # Lowered from 0.005
+        
+        if len(X) < 10:
+            # Fallback if too little data for training: try even lower threshold
+            X, y = create_features_targets(df, horizon=5, threshold=0)
+            
+        if len(X) < 2:
+            raise Exception(f"Insufficient training data for {full_symbol} (found {len(X)} rows)")
+
         model = train_model(X, y)
 
         result_data = generate_line_signal(df, model, full_symbol)
@@ -253,10 +262,23 @@ def analyze_symbol(symbol):
         result_data["timeframe"] = timeframe
         result_data["status"] = "success"
 
-        print(json.dumps(result_data))
+        # Ensure all values are JSON serializable (no NaNs)
+        def clean_data(d):
+            if isinstance(d, dict):
+                return {k: clean_data(v) for k, v in d.items()}
+            elif isinstance(d, list):
+                return [clean_data(v) for v in d]
+            elif isinstance(d, float):
+                if np.isnan(d) or np.isinf(d): return 0.0
+                return d
+            return d
+
+        print(json.dumps(clean_data(result_data)))
 
     except Exception as e:
-        print(json.dumps({"status": "error", "message": str(e)}))
+        import traceback
+        error_msg = f"{str(e)}\n{traceback.format_exc()}"
+        print(json.dumps({"status": "error", "message": error_msg}))
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
