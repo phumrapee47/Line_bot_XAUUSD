@@ -131,14 +131,28 @@ router.post('/users/:userId/settings', async (req, res) => {
 
       // Add new selections
       for (const pair of filteredPairs) {
-        await UserTradingPair.create({
-          userId: user.id,
-          pairId: pair.tradingPairId || pair.pairId,
-          buyThreshold: pair.buyThreshold || 0.50,
-          sellThreshold: pair.sellThreshold || 0.50,
-          tpMultiplier: pair.tpMultiplier || null,
-          slMultiplier: pair.slMultiplier || null
-        });
+        try {
+          const pairId = pair.tradingPairId || pair.pairId;
+          const pairData = {
+            userId: user.id,
+            pairId: pairId,
+            buyThreshold: pair.buyThreshold || 0.50,
+            sellThreshold: pair.sellThreshold || 0.50,
+            tpMultiplier: pair.tpMultiplier || null,
+            slMultiplier: pair.slMultiplier || null
+          };
+          
+          if (!pairId) {
+             logger.warn(`[Warning] Missing pairId for user ${userId}. Pair object: ${JSON.stringify(pair)}`);
+             continue; 
+          }
+
+          await UserTradingPair.create(pairData);
+        } catch (pairError) {
+          logger.error(`[Error] Failed to create UserTradingPair for user ${userId}, pair: ${JSON.stringify(pair)}`);
+          logger.error(pairError);
+          throw pairError; // Re-throw to be caught by the outer catch
+        }
       }
     }
 
@@ -196,7 +210,7 @@ router.post('/users/:userId/settings', async (req, res) => {
       data: updatedUser
     });
   } catch (error) {
-    logger.error(`Error saving settings for ${req.params.userId}: ${error.stack}`);
+    logger.error(`Error saving settings for ${req.params.userId}:`, error);
     res.status(500).json({
       success: false,
       error: error.message
