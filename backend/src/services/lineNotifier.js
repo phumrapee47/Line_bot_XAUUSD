@@ -174,8 +174,13 @@ newsLine +
       );
     })();
 
-    if (userIds && userIds.length > 0) {
-      return await this.sendToMultipleUsers(message, userIds);
+    if (Array.isArray(userIds)) {
+      if (userIds.length > 0) {
+        return await this.sendToMultipleUsers(message, userIds);
+      } else {
+        logger.info('No LINE users targeted for this signal, skipping notification.');
+        return [];
+      }
     } else {
       return await this.sendMessage(message);
     }
