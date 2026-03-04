@@ -48,10 +48,20 @@ def load_env_keys():
 
 api_key, secret_key = load_env_keys()
 
-exchange = ccxt.binance({
-    'apiKey': api_key,
-    'secret': secret_key,
-})
+try:
+    # Use KuCoin instead of Binance to avoid US region blocking on Render
+    exchange = ccxt.kucoin({
+        'enableRateLimit': True,
+    })
+    
+    # Only add keys if they exist (though public data usually doesn't need them)
+    if api_key and secret_key:
+        exchange.apiKey = api_key
+        exchange.secret = secret_key
+        
+except getattr(ccxt, 'ExchangeNotAvailable', Exception):
+    # Fallback to bybit if kucoin fails
+    exchange = ccxt.bybit({'enableRateLimit': True})
 
 def fetch_data(symbol, timeframe='30m', limit=1000):
     bars = exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
