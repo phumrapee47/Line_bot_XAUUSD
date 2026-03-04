@@ -14,15 +14,15 @@ if (process.env.DATABASE_URL) {
     dialectOptions: {
       ssl: {
         require: true,
-        rejectUnauthorized: false // Required for Supabase/Render SSL
-      }
+        rejectUnauthorized: false
+      },
+      connectTimeout: 60000 // เพิ่มเวลาให้รอ connection นานขึ้น (60 วิ)
     },
     pool: {
       max: 10,
-      min: 2,
+      min: 0, // กลับมาใช้ 0 เพื่อไม่ให้บังคับเปิด connection พร้อมกันตอนเริ่มระบบ
       acquire: 60000,
-      idle: 10000,
-      evict: 1000
+      idle: 10000
     }
   });
 
