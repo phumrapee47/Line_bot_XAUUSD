@@ -133,11 +133,18 @@ router.post('/users/:userId/settings', async (req, res) => {
       for (const pair of filteredPairs) {
         try {
           const pairId = pair.tradingPairId || pair.pairId;
+          let buyThreshold = pair.buyThreshold || 0.50;
+          let sellThreshold = pair.sellThreshold || 0.50;
+
+          // Normalize: if user sends 50 (percentage), convert to 0.50 (decimal)
+          if (buyThreshold > 1) buyThreshold = buyThreshold / 100;
+          if (sellThreshold > 1) sellThreshold = sellThreshold / 100;
+
           const pairData = {
             userId: user.id,
             pairId: pairId,
-            buyThreshold: pair.buyThreshold || 0.50,
-            sellThreshold: pair.sellThreshold || 0.50,
+            buyThreshold: buyThreshold,
+            sellThreshold: sellThreshold,
             tpMultiplier: pair.tpMultiplier || null,
             slMultiplier: pair.slMultiplier || null
           };

@@ -738,8 +738,8 @@
                                 this.selectedPairs = user.UserTradingPairs.map(p => p.pairId);
                                 user.UserTradingPairs.forEach(pair => {
                                     this.pairSettings[pair.pairId] = {
-                                        buyThreshold: pair.buyThreshold > 1 ? pair.buyThreshold : Math.round(pair.buyThreshold * 100),
-                                        sellThreshold: pair.sellThreshold > 1 ? pair.sellThreshold : Math.round(pair.sellThreshold * 100)
+                                        buyThreshold: pair.buyThreshold,
+                                        sellThreshold: pair.sellThreshold
                                     };
                                 });
                             }
@@ -1044,8 +1044,8 @@
                 getPairSettings(pairId) {
                     if (!this.pairSettings[pairId]) {
                         this.pairSettings[pairId] = {
-                            buyThreshold: 50,
-                            sellThreshold: 50
+                            buyThreshold: 0.50,
+                            sellThreshold: 0.50
                         };
                     }
                     return this.pairSettings[pairId];
