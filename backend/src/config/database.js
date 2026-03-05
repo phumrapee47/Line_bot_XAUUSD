@@ -16,7 +16,8 @@ if (process.env.DATABASE_URL) {
         require: true,
         rejectUnauthorized: false
       },
-      connectTimeout: 60000 // เพิ่มเวลาให้รอ connection นานขึ้น (60 วิ)
+      connectTimeout: 60000,
+      family: 4 // บังคับใช้ IPv4 เพื่อเลี่ยงปัญหา IPv6 บน Render
     },
     pool: {
       max: 10,
