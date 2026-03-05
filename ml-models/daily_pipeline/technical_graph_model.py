@@ -22,7 +22,7 @@ PAIR_CODE = sys.argv[2] if len(sys.argv) > 2 else 'XAUUSD'
 interval  = '1h'    # 1-hour timeframe
 outputsize = 500
 
-TWELVEDATA_API_KEY = os.getenv("TWELVEDATA_API_KEY") or '6004b1b7fcaf4f9d8e0027fb1c818716'
+TWELVEDATA_API_KEY = os.getenv("TWELVEDATA_API_KEY")
 
 print(f"Downloading {SYMBOL} ({PAIR_CODE}) data from TwelveData...")
 

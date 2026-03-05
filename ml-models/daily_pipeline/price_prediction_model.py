@@ -24,7 +24,7 @@ warnings.filterwarnings('ignore')
 # =============================================================================
 SYMBOL             = sys.argv[1] if len(sys.argv) > 1 else 'XAU/USD'
 PAIR_CODE          = sys.argv[2] if len(sys.argv) > 2 else 'XAUUSD'
-TWELVEDATA_API_KEY = os.getenv('TWELVEDATA_API_KEY', '6004b1b7fcaf4f9d8e0027fb1c818716')
+TWELVEDATA_API_KEY = os.getenv('TWELVEDATA_API_KEY')
 OUTPUT_DIR         = Path(__file__).parent.parent.parent / 'backend' / 'data' / 'predictions'
 OUTPUTSIZE         = 2000   # days of history to fetch
 print(f"Symbol: {SYMBOL} | Pair Code: {PAIR_CODE}")

@@ -1,4 +1,3 @@
-import ccxt
 import pandas as pd
 import numpy as np
 import sys
@@ -8,10 +7,26 @@ import datetime
 import os
 from pathlib import Path
 from sklearn.ensemble import RandomForestClassifier
+from dotenv import load_dotenv
 
+# Try to import ccxt safely
+try:
+    import ccxt
+    HAS_CCXT = True
+except ImportError:
+    HAS_CCXT = False
+
+# Try to import twelvedata for fallback
+try:
+    from twelvedata import TDClient
+    HAS_TWELVEDATA = True
+except ImportError:
+    HAS_TWELVEDATA = False
+
+load_dotenv()
 sys.stdout.reconfigure(encoding='utf-8')
 
-# Optimized timeframe mapping from backtest results
+# Optimized timeframe mapping
 OPTIMIZED_TIMEFRAMES = {
     'BNB/USDT': '15m',
     'BTC/USDT': '15m',
@@ -23,51 +38,71 @@ OPTIMIZED_TIMEFRAMES = {
 
 DEFAULT_TIMEFRAME = '30m'
 
-def load_env_keys():
-    api_key = ''
-    secret_key = ''
-    try:
-        env_path = Path(__file__).parent.parent.parent / '.env'
-        if env_path.exists():
-            with open(env_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith('#'):
-                        continue
-                    if '=' in line:
-                        key, val = line.split('=', 1)
-                        key = key.strip()
-                        val = val.strip()
-                        if key == 'BINANCE_API_KEY':
-                            api_key = val
-                        elif key == 'BINANCE_SECRET_KEY':
-                            secret_key = val
-    except Exception:
-        pass
-    return api_key, secret_key
+def get_env_keys():
+    return {
+        'binance_api': os.getenv('BINANCE_API_KEY', ''),
+        'binance_secret': os.getenv('BINANCE_SECRET_KEY', ''),
+        'twelvedata_api': os.getenv('TWELVEDATA_API_KEY', '')
+    }
 
-api_key, secret_key = load_env_keys()
+keys = get_env_keys()
 
-try:
-    # Use KuCoin instead of Binance to avoid US region blocking on Render
-    exchange = ccxt.kucoin({
-        'enableRateLimit': True,
-    })
-    
-    # Only add keys if they exist (though public data usually doesn't need them)
-    if api_key and secret_key:
-        exchange.apiKey = api_key
-        exchange.secret = secret_key
+def fetch_data_ccxt(symbol, timeframe='30m', limit=500):
+    if not HAS_CCXT:
+        raise ImportError("ccxt module not found")
         
-except getattr(ccxt, 'ExchangeNotAvailable', Exception):
-    # Fallback to bybit if kucoin fails
-    exchange = ccxt.bybit({'enableRateLimit': True})
+    # Use KuCoin as primary fallback for Render (some regions blocked for Binance)
+    exchanges_to_try = [
+        ccxt.kucoin({'enableRateLimit': True}),
+        ccxt.bybit({'enableRateLimit': True}),
+        ccxt.okx({'enableRateLimit': True})
+    ]
+    
+    last_error = None
+    for exchange in exchanges_to_try:
+        try:
+            bars = exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+            df = pd.DataFrame(bars, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            return df.set_index('timestamp')
+        except Exception as e:
+            last_error = e
+            continue
+            
+    raise last_error if last_error else Exception("All exchanges failed")
 
-def fetch_data(symbol, timeframe='30m', limit=1000):
-    bars = exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
-    df = pd.DataFrame(bars, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-    return df.set_index('timestamp')
+def fetch_data_twelvedata(symbol, timeframe='30m', limit=500):
+    if not HAS_TWELVEDATA or not keys['twelvedata_api']:
+        raise ImportError("TwelveData client or API key missing")
+        
+    # Map ccxt symbol to TwelveData symbol
+    # BTC/USDT -> BTC/USD
+    td_symbol = symbol.replace('/USDT', '/USD')
+    # Use '15min' or '30min' etc for TwelveData
+    td_interval = timeframe.replace('m', 'min').replace('h', 'h')
+    
+    td = TDClient(apikey=keys['twelvedata_api'])
+    ts = td.time_series(symbol=td_symbol, interval=td_interval, outputsize=limit)
+    df = ts.as_pandas()
+    
+    if df.empty:
+        raise Exception(f"No data for {td_symbol}")
+        
+    # TwelveData returns newest first
+    df = df.iloc[::-1]
+    df.index.name = 'timestamp'
+    return df
+
+def fetch_data(symbol, timeframe='30m', limit=500):
+    try:
+        # Try CCXT first
+        return fetch_data_ccxt(symbol, timeframe, limit)
+    except Exception as e:
+        # Fallback to TwelveData
+        try:
+            return fetch_data_twelvedata(symbol, timeframe, limit)
+        except Exception as e2:
+            raise Exception(f"CCXT Error: {str(e)} | TwelveData Error: {str(e2)}")
 
 def add_indicators(df):
     close = df['close']
