@@ -96,10 +96,10 @@ router.post('/upload', async (req, res) => {
 });
 
 /**
- * GET /api/daily-analysis/:pairCode
+ * GET /api/daily-analysis/:pairCode (or wildcard for slashes)
  * Return the latest analysis + image URLs for a given pair
  */
-router.get('/:pairCode', async (req, res) => {
+router.get('/:pairCode(*)', async (req, res) => {
   try {
     const { pairCode } = req.params;
 
