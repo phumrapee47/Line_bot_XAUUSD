@@ -105,7 +105,7 @@ router.get('/:pairCode', async (req, res) => {
 
     const record = await DailyAnalysis.findOne({
       where: { pairCode },
-      order: [['analysisDate', 'DESC'], ['createdAt', 'DESC']]
+      order: [['analysis_date', 'DESC'], ['created_at', 'DESC']]
     });
 
     if (!record) {
