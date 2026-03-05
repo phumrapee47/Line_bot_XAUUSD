@@ -40,14 +40,14 @@ GRAPH_SCRIPT      = str(ML_MODELS_DIR / 'technical_graph_model.py')
 
 # Pairs to run: (twelvedata_symbol, safe_pair_code)
 # pair_code must be safe for filenames (no '/' or ':')
-PAIRS = [
-    ('XAU/USD',   'XAUUSD'),
-    ('BTC/USD',   'BTC_USDT'),
-    ('ETH/USD',   'ETH_USDT'),
-    ('BNB/USD',   'BNB_USDT'),
-    ('SOL/USD',   'SOL_USDT'),
-    ('XRP/USD',   'XRP_USDT'),
-    ('DOGE/USD',  'DOGE_USDT'),
+PAIR_CONFIGS = [
+    {"symbol": "XAU/USD",  "pairCode": "XAUUSD"},
+    {"symbol": "BTC/USD",  "pairCode": "BTC/USDT"},
+    {"symbol": "ETH/USD",  "pairCode": "ETH/USDT"},
+    {"symbol": "BNB/USD",  "pairCode": "BNB/USDT"},
+    {"symbol": "SOL/USD",  "pairCode": "SOL/USDT"},
+    {"symbol": "DOGE/USD", "pairCode": "DOGE/USDT"},
+    {"symbol": "XRP/USD",  "pairCode": "XRP/USDT"},
 ]
 
 def log(msg):
@@ -124,9 +124,12 @@ def process_pair(symbol, pair_code):
     log(f"Processing {pair_code} ({symbol})")
     log(f"{'='*60}")
 
+    # Use a safe version for filenames (no '/')
+    safe_code = pair_code.replace('/', '_')
+
     # Step 1: Prediction model
     log(f"  [1/3] Running prediction model...")
-    pred_path = run_script(PREDICTION_SCRIPT, [symbol, pair_code])
+    pred_path = run_script(PREDICTION_SCRIPT, [symbol, safe_code])
     if not pred_path or not Path(pred_path).exists():
         log(f"  ERROR: Prediction image not found for {pair_code}")
         return None
@@ -134,7 +137,7 @@ def process_pair(symbol, pair_code):
 
     # Step 2: Graph model
     log(f"  [2/3] Running graph model...")
-    graph_path = run_script(GRAPH_SCRIPT, [symbol, pair_code])
+    graph_path = run_script(GRAPH_SCRIPT, [symbol, safe_code])
     if not graph_path or not Path(graph_path).exists():
         log(f"  WARNING: Graph image not found, skipping Gemini")
         return {
@@ -173,45 +176,42 @@ def main():
     results = []
     success_count = 0
 
-    for symbol, pair_code in PAIRS:
+    for config in PAIR_CONFIGS:
+        symbol = config["symbol"]
+        pair_code = config["pairCode"]
         try:
             result = process_pair(symbol, pair_code)
             if result:
                 results.append(result)
-                # Save individual result file (backend picks this up)
-                result_file = RESULTS_DIR / f'{pair_code}_result.json'
-                with open(str(result_file), 'w', encoding='utf-8') as f:
-                    json.dump(result, f, ensure_ascii=False, indent=2)
-                log(f"  Result saved: {result_file}")
                 success_count += 1
-        except Exception as e:
-            log(f"FATAL ERROR for {pair_code}: {e}")
+                
+                # Save individual result JSON
+                safe_code = pair_code.replace('/', '_')
+                result_file = RESULTS_DIR / f"{safe_code}_result.json"
+                with open(result_file, 'w', encoding='utf-8') as f:
+                    json.dump(result, f, indent=2, ensure_ascii=False)
+                log(f"  ✅ Result saved to {result_file}")
 
-    print(f"\n{'='*60}")
-    print(f"Pipeline complete: {success_count}/{len(PAIRS)} pairs succeeded")
-    print(f"{'='*60}")
+        except Exception as e:
+            log(f"  ❌ ERROR processing {pair_code}: {e}")
 
     # Save summary
-    summary = {
-        'timestamp': datetime.now().isoformat(),
-        'total': len(PAIRS),
-        'success': success_count,
-        'results': results
-    }
-    summary_path = DATA_DIR / 'pipeline_summary.json'
-    with open(str(summary_path), 'w', encoding='utf-8') as f:
-        json.dump(summary, f, ensure_ascii=False, indent=2)
-    log(f"Summary saved: {summary_path}")
+    summary_file = PROJECT_ROOT / 'backend' / 'data' / 'pipeline_summary.json'
+    with open(summary_file, 'w', encoding='utf-8') as f:
+        json.dump({
+            "timestamp": datetime.now().isoformat(),
+            "successCount": success_count,
+            "results": results
+        }, f, indent=2, ensure_ascii=False)
 
-    return success_count > 0
+    print("\n" + "="*60)
+    print(f"PIPELINE COMPLETE: {success_count}/{len(PAIR_CONFIGS)} pairs successful")
+    print(f"Summary saved to {summary_file}")
+    print("="*60 + "\n")
 
 if __name__ == "__main__":
     try:
-        success = main()
-        sys.exit(0 if success else 1)
-    except KeyboardInterrupt:
-        log("Pipeline interrupted")
-        sys.exit(130)
+        main()
     except Exception as e:
         log(f"FATAL: {e}")
         sys.exit(1)
