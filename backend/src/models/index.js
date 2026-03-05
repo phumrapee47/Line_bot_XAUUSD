@@ -6,6 +6,7 @@ const UserNotificationPreferences = require('./UserNotificationPreferences');
 const UserTradingParameters = require('./UserTradingParameters');
 const TelegramSubscriber = require('./TelegramSubscriber');
 const TradingSignal = require('./TradingSignal');
+const DailyAnalysis = require('./DailyAnalysis');
 
 // --- Associations ---
 
@@ -37,5 +38,6 @@ module.exports = {
   UserNotificationPreferences,
   UserTradingParameters,
   TelegramSubscriber,
-  TradingSignal
+  TradingSignal,
+  DailyAnalysis
 };

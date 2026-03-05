@@ -11,6 +11,8 @@ const telegramRoutes = require('./routes/telegramRoutes');
 const healthCheckRoutes = require('./routes/healthCheck');
 const initDatabase = require('./config/initDatabase');
 const userSettingsRoutes = require('./routes/userSettingsRoutes');
+const dailyAnalysisRoutes = require('./routes/dailyAnalysisRoutes');
+
 
 const app = express();
 app.use(express.json());
@@ -113,6 +115,8 @@ app.post('/telegram/webhook', async (req, res) => {
 app.use('/api/liff', liffRoutes);
 app.use('/api/telegram', telegramRoutes);
 app.use('/api', userSettingsRoutes);
+app.use('/api/daily-analysis', dailyAnalysisRoutes);
+
 
 // --- Frontend Static Serving (Monolithic Deployment) ---
 const path = require('path');
@@ -161,6 +165,32 @@ app.listen(config.server.port, () => {
   });
 
   logger.info(`✅ Multi-timeframe scheduler initialized for ${schedules.length} frequency groups`);
+
+  // --- Daily Analysis Pipeline ---
+  // Run every day at 02:00 AM server time
+  cron.schedule('0 2 * * *', async () => {
+    logger.info('⏰ Starting Daily Analysis ML Pipeline for all pairs...');
+    try {
+      const { exec } = require('child_process');
+      const util = require('util');
+      const execPromise = util.promisify(exec);
+      
+      const mlDir = path.join(__dirname, '../../ml-models/daily_pipeline');
+      // Run the pipeline (this might take several minutes)
+      logger.info('Running python daily_trading_pipeline.py...');
+      const { stdout, stderr } = await execPromise('python daily_trading_pipeline.py', { cwd: mlDir, timeout: 600000 });
+      logger.info(`Pipeline ML complete: ${stdout.substring(0, 100)}...`);
+      
+      // Call the internal upload API
+      logger.info('Calling internal /api/daily-analysis/upload to sync to DB & Supabase...');
+      const axios = require('axios');
+      const response = await axios.post(`http://localhost:${config.server.port}/api/daily-analysis/upload`);
+      logger.info(`Upload API result: Processed ${response.data.processed} pairs.`);
+    } catch (e) {
+      logger.error(`Error in daily analysis pipeline cron: ${e.message}`);
+    }
+  });
+  logger.info('✅ Daily pipeline scheduler initialized (02:00 AM)');
 });
 
 // Graceful shutdown

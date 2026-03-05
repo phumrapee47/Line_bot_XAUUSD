@@ -811,10 +811,16 @@
                     this.dailyAnalysis = null;
                     try {
                         const encodedPair = encodeURIComponent(pairCode);
-                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/analysis/daily/${encodedPair}`, { timeout: 10000 });
+                        const response = await this.fetchWithTimeout(`${this.getBackendUrl()}/api/daily-analysis/${encodedPair}`, { timeout: 10000 });
                         const data = await response.json();
-                        if (data.success) {
-                            this.dailyAnalysis = data.data;
+                        if (data.success && data.data) {
+                            // Map new DB fields to what frontend expects
+                            this.dailyAnalysis = {
+                                analysis: data.data.analysis,
+                                prediction_image: data.data.predictionImageUrl,
+                                graph_image: data.data.graphImageUrl,
+                                timestamp: data.data.analysisDate
+                            };
                         }
                     } catch (error) {
                         console.error('Error fetching daily analysis:', error);
@@ -914,7 +920,9 @@
 
                 getImageUrl(imagePath, type) {
                     if (!imagePath) return '';
+                    // If it's already a full URL (like Supabase public URL), return it directly
                     if (imagePath.startsWith('http')) return imagePath;
+                    // Fallback for old local files (should be rare now)
                     return `${this.backendUrl}/api/data/${type}/${imagePath}`;
                 },
 
