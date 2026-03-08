@@ -117,6 +117,67 @@ app.use('/api/telegram', telegramRoutes);
 app.use('/api', userSettingsRoutes);
 app.use('/api/daily-analysis', dailyAnalysisRoutes);
 
+// ==============================================================
+// Admin Broadcast API
+// POST /api/broadcast
+// Headers: x-admin-secret: <ADMIN_SECRET from .env>
+// Body: { message, channel ('line'|'telegram'|'both'), tier ('all'|'subscription'|'unsubscription') }
+// ==============================================================
+app.post('/api/broadcast', async (req, res) => {
+  const secret = req.headers['x-admin-secret'];
+  const adminSecret = process.env.ADMIN_SECRET;
+
+  if (!adminSecret || secret !== adminSecret) {
+    return res.status(401).json({ success: false, error: 'Unauthorized: Invalid admin secret' });
+  }
+
+  const { message, channel = 'both', tier = 'all' } = req.body;
+  if (!message || !message.trim()) {
+    return res.status(400).json({ success: false, error: 'Message is required' });
+  }
+
+  try {
+    const userSettingsService = require('./services/userSettingsService');
+
+    // Build list of recipient user IDs
+    const lineUsers = (channel === 'line' || channel === 'both')
+      ? await userSettingsService.getActiveUsersForBroadcasting('line')
+      : [];
+    const telegramUsers = (channel === 'telegram' || channel === 'both')
+      ? await userSettingsService.getActiveUsersForBroadcasting('telegram')
+      : [];
+
+    // Filter by tier if specified
+    const filterByTier = (users) => {
+      if (tier === 'all') return users;
+      return users.filter(u => u.subscription_type === tier);
+    };
+
+    const lineIds = filterByTier(lineUsers).map(u => u.line_user_id).filter(Boolean);
+    const telegramIds = filterByTier(telegramUsers).map(u => u.telegram_user_id).filter(Boolean);
+
+    logger.info(`📢 Admin Broadcast: "${message.substring(0, 40)}..." → LINE: ${lineIds.length}, Telegram: ${telegramIds.length}`);
+
+    const results = await Promise.allSettled([
+      lineIds.length > 0 ? lineNotifier.sendToMultipleUsers(message, lineIds) : Promise.resolve([]),
+      telegramIds.length > 0 ? telegramNotifier.sendToMultipleUsers(message, telegramIds) : Promise.resolve([])
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        lineSent: lineIds.length,
+        telegramSent: telegramIds.length,
+        total: lineIds.length + telegramIds.length
+      }
+    });
+  } catch (error) {
+    logger.error(`Broadcast error: ${error.message}`);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+
 
 // --- Frontend Static Serving (Monolithic Deployment) ---
 const path = require('path');
