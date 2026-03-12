@@ -85,7 +85,20 @@ class TelegramNotifier {
       return false;
     } catch (error) {
       if (error.response) {
-        logger.error(`Telegram API Error: ${error.response.status} - ${error.response.data?.description || error.message}`);
+        const status = error.response.status;
+        const description = error.response.data?.description || '';
+        logger.error(`Telegram API Error: ${status} - ${description}`);
+
+        // If user blocked the bot or chat not found, deactivate them
+        if (status === 400 && (description.includes('chat not found') || description.includes('bot was blocked'))) {
+          try {
+            const TelegramSubscriber = require('../models/TelegramSubscriber');
+            await TelegramSubscriber.update({ isActive: false }, { where: { telegram_user_id: userId.toString() } });
+            logger.warn(`🚫 User ${userId} has blocked/deleted the bot. Deactivated in database.`);
+          } catch (dbErr) {
+            logger.error(`Failed to deactivate Telegram user ${userId}: ${dbErr.message}`);
+          }
+        }
       } else {
         logger.error(`Telegram Connection Error: ${error.message}`);
       }

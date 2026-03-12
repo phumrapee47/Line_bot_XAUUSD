@@ -240,30 +240,35 @@ app.listen(config.server.port, () => {
   logger.info(`✅ Multi-timeframe scheduler initialized for ${schedules.length} frequency groups`);
 
   // --- Daily Analysis Pipeline ---
-  // Run every day at 02:00 AM server time
+  // Run every day at 02:00 AM Bangkok time
   cron.schedule('0 2 * * *', async () => {
-    logger.info('⏰ Starting Daily Analysis ML Pipeline for all pairs...');
+    logger.info('⏰ [Bangkok 02:00 AM] Scheduled check: Starting Daily Analysis ML Pipeline...');
     try {
       const { exec } = require('child_process');
       const util = require('util');
       const execPromise = util.promisify(exec);
       
       const mlDir = path.join(__dirname, '../../ml-models/daily_pipeline');
-      // Run the pipeline (this might take several minutes)
-      logger.info('Running python daily_trading_pipeline.py...');
-      const { stdout, stderr } = await execPromise('python daily_trading_pipeline.py', { cwd: mlDir, timeout: 600000 });
-      logger.info(`Pipeline ML complete: ${stdout.substring(0, 100)}...`);
       
-      // Call the internal upload API
-      logger.info('Calling internal /api/daily-analysis/upload to sync to DB & Supabase...');
+      // 1. Run the pipeline (this might take several minutes)
+      logger.info('Step 1: Running python daily_trading_pipeline.py...');
+      const { stdout, stderr } = await execPromise('python daily_trading_pipeline.py', { cwd: mlDir, timeout: 600000 });
+      logger.info(`ML pipeline stdout: ${stdout.substring(0, 100)}...`);
+      if (stderr) logger.warn(`ML pipeline stderr: ${stderr}`);
+
+      // 2. Call the internal upload API to sync to DB & Supabase
+      logger.info('Step 2: Syncing results to Database & Supabase...');
       const axios = require('axios');
       const response = await axios.post(`http://localhost:${config.server.port}/api/daily-analysis/upload`);
-      logger.info(`Upload API result: Processed ${response.data.processed} pairs.`);
+      const { processed = 0 } = response.data;
+      logger.info(`✅ Daily pipeline complete: ${processed} pairs processed.`);
     } catch (e) {
-      logger.error(`Error in daily analysis pipeline cron: ${e.message}`);
+      logger.error(`❌ Fatal error in daily analysis pipeline cron: ${e.message}`);
     }
+  }, {
+    timezone: "Asia/Bangkok"
   });
-  logger.info('✅ Daily pipeline scheduler initialized (02:00 AM)');
+  logger.info('✅ Daily pipeline scheduler initialized (02:00 AM, Asia/Bangkok)');
 });
 
 // Graceful shutdown

@@ -30,7 +30,7 @@ async function testLinkFlow() {
     const result = await linkHandler.verifyCode(code, telegramData);
     console.log(`✅ Verification result: ${result.message}`);
 
-    // 4. Check status (should be linked)
+    // 4. Check status (should be link
     console.log('\nStep 4: Checking link status (after)...');
     const statusAfter = await linkHandler.getLinkStatus(testLineId);
     console.log(`✅ Status: ${JSON.stringify(statusAfter)}`);
