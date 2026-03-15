@@ -18,7 +18,7 @@ services:
     name: xauusd-trading-bot-backend
     runtime: node
     plan: free
-    buildCommand: cd backend && npm install && pip install -r requirements.txt && node seeds/seedTradingPairs.js
+    buildCommand: cd backend && npm install && pip install -r requirements.txt && pip install -r ../ml-models/requirements.txt && node seeds/seedTradingPairs.js
     startCommand: cd backend && npm start
     autoDeploy: true
     envVars:

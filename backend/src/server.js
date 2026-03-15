@@ -239,10 +239,9 @@ app.listen(config.server.port, () => {
 
   logger.info(`✅ Multi-timeframe scheduler initialized for ${schedules.length} frequency groups`);
 
-  // --- Daily Analysis Pipeline ---
-  // Run every day at 02:00 AM Bangkok time
-  cron.schedule('0 2 * * *', async () => {
-    logger.info('⏰ [Bangkok 02:00 AM] Scheduled check: Starting Daily Analysis ML Pipeline...');
+  // --- Daily Analysis Pipeline Logic ---
+  const runDailyPipeline = async () => {
+    logger.info('Starting Daily Analysis ML Pipeline...');
     try {
       const { exec } = require('child_process');
       const util = require('util');
@@ -262,14 +261,33 @@ app.listen(config.server.port, () => {
       const response = await axios.post(`http://localhost:${config.server.port}/api/daily-analysis/upload`);
       const { processed = 0 } = response.data;
       logger.info(`✅ Daily pipeline complete: ${processed} pairs processed.`);
+      return { success: true, processed, stdout };
     } catch (e) {
-      logger.error(`❌ Fatal error in daily analysis pipeline cron: ${e.message}`);
+      logger.error(`❌ Fatal error in daily analysis pipeline: ${e.message}`);
+      return { success: false, error: e.message };
     }
+  };
+
+  // Endpoint to manually trigger the pipeline (useful for UptimeRobot / cron-job.org)
+  app.post('/api/trigger-daily-pipeline', async (req, res) => {
+    logger.info('Manual trigger: Daily Pipeline');
+    
+    // We start the pipeline asynchronously and return immediately so the Webhook doesn't timeout
+    runDailyPipeline();
+    
+    res.json({ success: true, message: 'Daily pipeline triggered and is running in the background.' });
+  });
+
+  // Run every day at 02:00 AM Bangkok time (if server is awake)
+  cron.schedule('0 2 * * *', async () => {
+    logger.info('⏰ [Bangkok 02:00 AM] Scheduled check: Starting Daily Analysis ML Pipeline...');
+    await runDailyPipeline();
   }, {
     timezone: "Asia/Bangkok"
   });
   logger.info('✅ Daily pipeline scheduler initialized (02:00 AM, Asia/Bangkok)');
 });
+
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
