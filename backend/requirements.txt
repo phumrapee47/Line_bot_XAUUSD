@@ -10,3 +10,4 @@ python-dotenv>=1.0.0
 pandas-ta
 scikit-learn
 matplotlib>=3.8.0
+lightgbm>=4.0.0
