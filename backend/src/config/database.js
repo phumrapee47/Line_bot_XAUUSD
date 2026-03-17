@@ -10,31 +10,26 @@ if (process.env.DATABASE_URL) {
   
   sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
-    logging: msg => logger.debug(msg),
     dialectOptions: {
       ssl: {
         require: true,
         rejectUnauthorized: false
       },
-      connectTimeout: 60000
+      connectTimeout: 90000, // Increase to 90s
+      keepAlive: true // Help keep connections alive
     },
-    logging: msg => logger.info(msg),
+    logging: msg => logger.debug(msg), // Keep only debug logging here
     pool: {
-      max: 5, 
+      max: 10, // Slightly increase max connections
       min: 1,
-      acquire: 60000,
-      idle: 10000
+      acquire: 90000, // Increase to 90s
+      idle: 10000,
+      evict: 1000 // Check for idle connections every second
     }
   });
 
-  // Test connection
-  sequelize.authenticate()
-    .then(() => {
-      logger.info('Database connection established successfully.');
-    })
-    .catch(err => {
-      logger.error('Unable to connect to the database:', err);
-    });
+  // Note: Immediate sequelize.authenticate() removed here. 
+  // It is now handled with retry logic in initDatabase.js
 
 } else {
   // Fallback for local development without database
