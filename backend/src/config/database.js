@@ -18,9 +18,10 @@ if (process.env.DATABASE_URL) {
       },
       connectTimeout: 60000
     },
+    logging: msg => logger.info(msg),
     pool: {
-      max: 20,
-      min: 0, // กลับมาใช้ 0 เพื่อไม่ให้บังคับเปิด connection พร้อมกันตอนเริ่มระบบ
+      max: 5, 
+      min: 1,
       acquire: 60000,
       idle: 10000
     }

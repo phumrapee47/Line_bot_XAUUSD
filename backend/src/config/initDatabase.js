@@ -9,7 +9,9 @@ async function initDatabase() {
       logger.info('Initializing PostgreSQL database...');
       
       // Sync models without alter in production to prevent hangs unless necessary
-      await sequelize.sync(); 
+      // Sync models with alter in production to ensure indexes are created
+      // Sync models with alter to ensure indexes are applied
+      await sequelize.sync({ alter: true }); 
       
       logger.info('✅ Database tables synchronized successfully');
       

@@ -41,6 +41,15 @@ class TradingSignalService {
     }
   }
 
+  // Normalize signals to prevent string mismatch (e.g., "HOLD" vs "⚪ HOLD")
+  normalizeSignal(signal) {
+    if (!signal) return '⚪ HOLD';
+    const s = signal.toString().toUpperCase();
+    if (s.includes('BUY')) return '🟢 BUY';
+    if (s.includes('SELL')) return '🔴 SELL';
+    return '⚪ HOLD';
+  }
+
   async generateSignal(pairCode = 'XAUUSD') {
     try {
       logger.info(`Generating trading signal for ${pairCode}...`);
@@ -78,9 +87,14 @@ class TradingSignalService {
       let confidence = combinedScore;
 
       // For non-XAUUSD, try to use values directly from technical analysis if they are high-confidence
-      if (!isXAUUSD && technicalData.signal && technicalData.signal !== '⚪ HOLD') {
-        signal = technicalData.signal;
-        confidence = technicalData.confidence / 100; // Normalize to 0-1 range to match system
+      if (!isXAUUSD && technicalData.signal) {
+        const normalized = this.normalizeSignal(technicalData.signal);
+        if (normalized !== '⚪ HOLD') {
+          signal = normalized;
+          confidence = technicalData.confidence / 100;
+        } else {
+          signal = '⚪ HOLD';
+        }
       }
 
       const signalData = {
@@ -118,8 +132,8 @@ class TradingSignalService {
       return;
     }
 
-    const currentSignal = signalData.signal;
-    const lastSignal = this.lastSignals[pairCode] || '⚪ HOLD';
+    const currentSignal = this.normalizeSignal(signalData.signal);
+    const lastSignal = this.normalizeSignal(this.lastSignals[pairCode] || '⚪ HOLD');
 
     // Broadcast if signal is BUY or SELL, AND it's different from the last signal for this pair
     const isActionable = currentSignal !== '⚪ HOLD';
