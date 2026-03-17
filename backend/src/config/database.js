@@ -16,8 +16,7 @@ if (process.env.DATABASE_URL) {
         require: true,
         rejectUnauthorized: false
       },
-      connectTimeout: 60000,
-      family: 4 // บังคับใช้ IPv4 เพื่อเลี่ยงปัญหา IPv6 บน Render
+      connectTimeout: 60000
     },
     pool: {
       max: 10,
