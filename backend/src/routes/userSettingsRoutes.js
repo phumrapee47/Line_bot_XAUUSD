@@ -62,9 +62,13 @@ router.get('/users/:userId', async (req, res) => {
     const user = await User.findOne({
       where: { lineUserId: userId },
       include: [
-        { model: UserTradingPair, include: [TradingPair] },
-        { model: UserNotificationPreferences },
-        { model: UserTradingParameters }
+        { 
+          model: UserTradingPair, 
+          as: 'UserTradingPairs', 
+          include: [{ model: TradingPair, as: 'TradingPair' }] 
+        },
+        { model: UserNotificationPreferences, as: 'UserNotificationPreference' }
+        // UserTradingParameters disabled in index.js
       ]
     });
 
@@ -205,9 +209,13 @@ router.post('/users/:userId/settings', async (req, res) => {
     const updatedUser = await User.findOne({
       where: { id: user.id },
       include: [
-        { model: UserTradingPair, include: [TradingPair] },
-        { model: UserNotificationPreferences },
-        { model: UserTradingParameters }
+        { 
+          model: UserTradingPair, 
+          as: 'UserTradingPairs', 
+          include: [{ model: TradingPair, as: 'TradingPair' }] 
+        },
+        { model: UserNotificationPreferences, as: 'UserNotificationPreference' }
+        // UserTradingParameters disabled in index.js
       ]
     });
 
@@ -282,9 +290,13 @@ router.post('/users/:userId/settings/reset', async (req, res) => {
     const updatedUser = await User.findOne({
       where: { id: user.id },
       include: [
-        { model: UserTradingPair, include: [TradingPair] },
-        { model: UserNotificationPreferences },
-        { model: UserTradingParameters }
+        { 
+          model: UserTradingPair, 
+          as: 'UserTradingPairs', 
+          include: [{ model: TradingPair, as: 'TradingPair' }] 
+        },
+        { model: UserNotificationPreferences, as: 'UserNotificationPreference' }
+        // UserTradingParameters disabled in index.js
       ]
     });
 

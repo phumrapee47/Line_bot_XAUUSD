@@ -51,6 +51,8 @@ class TechnicalAnalysisService {
           pythonBridge.getTechnicalAnalysis(pairCode),
           this.timeout
         );
+      });
+
       // Validate the result - use tp1 for crypto, tp for XAUUSD
       const isXAUUSD = pairCode === 'XAUUSD';
       const priceData = {
