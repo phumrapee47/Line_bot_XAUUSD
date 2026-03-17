@@ -51,19 +51,22 @@ class TechnicalAnalysisService {
           pythonBridge.getTechnicalAnalysis(pairCode),
           this.timeout
         );
-      });
-
       // Validate the result - use tp1 for crypto, tp for XAUUSD
       const isXAUUSD = pairCode === 'XAUUSD';
       const priceData = {
         price: result.price,
-        tp: isXAUUSD ? result.tp : (result.tp1 || result.tp || result.price), // Use tp1 for crypto
+        tp: isXAUUSD ? result.tp : (result.tp1 || result.tp || result.price),
         sl: result.sl,
         probability: result.probability
       };
 
       // Use validation service to check and fallback if needed
       const validatedPrice = priceValidation.getPriceWithFallback(pairCode, priceData);
+
+      // Log with more indicators if available
+      const adxInfo = result.adx ? `, adx=${result.adx}` : '';
+      const rsiInfo = result.rsi ? `, rsi=${result.rsi}` : '';
+      logger.info(`Technical analysis completed for ${pairCode}: prob=${validatedPrice.probability.toFixed(4)}, price=${validatedPrice.price}${adxInfo}${rsiInfo}`);
 
       return {
         pairCode: pairCode,
@@ -75,10 +78,12 @@ class TechnicalAnalysisService {
         sl: result.sl || validatedPrice.sl,
         source: validatedPrice.source,
         isValid: validatedPrice.isValid,
-        // Pass through fields from Python model (for Crypto)
+        // Pass through fields from Python model
         signal: result.signal || null,
         confidence: result.confidence || null,
         score: result.score || null,
+        adx: result.adx || null,
+        rsi: result.rsi || null,
         message: result.message || null
       };
     } catch (error) {
