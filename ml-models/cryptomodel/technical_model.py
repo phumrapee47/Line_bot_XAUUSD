@@ -4,7 +4,11 @@ import sys
 import json
 import datetime
 import os
-import xgboost as xgb
+try:
+    import xgboost as xgb
+except ImportError:
+    xgb = None
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import TimeSeriesSplit
 from dotenv import load_dotenv
 
@@ -440,16 +444,21 @@ def analyze_symbol(symbol):
         X, y, pct = create_features_targets(df, horizon=HORIZON)
 
         # Train final model
-        model = xgb.XGBClassifier(
-            n_estimators=300,
-            max_depth=5,
-            learning_rate=0.08,
-            subsample=0.75,
-            colsample_bytree=0.75,
-            scale_pos_weight=(y == 0).sum() / (y == 1).sum(),
-            random_state=42,
-            eval_metric='logloss'
-        )
+        if 'xgb' in sys.modules and xgb is not None:
+            model = xgb.XGBClassifier(
+                n_estimators=300,
+                max_depth=5,
+                learning_rate=0.08,
+                subsample=0.75,
+                colsample_bytree=0.75,
+                scale_pos_weight=(y == 0).sum() / (y == 1).sum() if (y == 1).sum() > 0 else 1,
+                random_state=42,
+                eval_metric='logloss'
+            )
+        else:
+            # Fallback to RandomForest if XGBoost is missing (Render environment safety)
+            model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
+            
         model.fit(X, y)
 
         result = generate_line_signal(df, model, full_symbol, timeframe)
