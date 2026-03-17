@@ -251,8 +251,11 @@ app.listen(config.server.port, () => {
       
       // 1. Run the pipeline (this might take several minutes)
       logger.info('Step 1: Running python daily_trading_pipeline.py...');
-      const { stdout, stderr } = await execPromise('python daily_trading_pipeline.py', { cwd: mlDir, timeout: 600000 });
-      logger.info(`ML pipeline stdout: ${stdout.substring(0, 100)}...`);
+      const { stdout, stderr } = await execPromise('python daily_trading_pipeline.py', { cwd: mlDir, timeout: 1800000 }); // Increase to 30 mins
+      if (stdout) {
+        const lastLines = stdout.split('\n').filter(l => l.trim()).slice(-5).join(' | ');
+        logger.info(`ML pipeline stdout (last bits): ${lastLines}...`);
+      }
       if (stderr) logger.warn(`ML pipeline stderr: ${stderr}`);
 
       // 2. Call the internal upload API to sync to DB & Supabase

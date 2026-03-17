@@ -15,7 +15,9 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 import os
 import subprocess
 import json
-from datetime import datetime
+import gc
+import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -117,6 +119,11 @@ def run_gemini_analysis(prediction_image_path, graph_image_path, pair_code):
     except Exception as e:
         log(f"  Gemini error: {e}")
         return None
+    finally:
+        # Clear large objects from memory
+        if 'pred_img' in locals(): del pred_img
+        if 'graph_img' in locals(): del graph_img
+        gc.collect()
 
 def process_pair(symbol, pair_code):
     """Run full pipeline for one pair."""
@@ -191,6 +198,12 @@ def main():
                 with open(result_file, 'w', encoding='utf-8') as f:
                     json.dump(result, f, indent=2, ensure_ascii=False)
                 log(f"  ✅ Result saved to {result_file}")
+                
+                # Memory management: clean up after each pair
+                gc.collect()
+                if config != PAIR_CONFIGS[-1]:
+                    log(f"  Cooldown: Waiting 5s...")
+                    time.sleep(5)
 
         except Exception as e:
             log(f"  ❌ ERROR processing {pair_code}: {e}")
