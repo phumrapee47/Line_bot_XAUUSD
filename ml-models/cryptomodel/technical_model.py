@@ -455,9 +455,11 @@ def analyze_symbol(symbol):
                 random_state=42,
                 eval_metric='logloss'
             )
+            model_name = "XGBoost v4 (Locked-TF)"
         else:
             # Fallback to RandomForest if XGBoost is missing (Render environment safety)
             model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42)
+            model_name = "RandomForest (Fallback)"
             
         model.fit(X, y)
 
@@ -465,7 +467,7 @@ def analyze_symbol(symbol):
         result["symbol"] = full_symbol
         result["timeframe"] = timeframe
         result["tf_source"] = tf_source
-        result["model"] = "XGBoost v4 (Locked-TF)"
+        result["model"] = model_name
         result["backtest"] = best_metrics
         result["tf_comparison"] = {tf: metrics for tf, metrics in tf_comparison.items()}
         result["status"] = "success"
