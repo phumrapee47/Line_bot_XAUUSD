@@ -19,7 +19,7 @@ if (process.env.DATABASE_URL) {
       connectTimeout: 60000
     },
     pool: {
-      max: 10,
+      max: 20,
       min: 0, // กลับมาใช้ 0 เพื่อไม่ให้บังคับเปิด connection พร้อมกันตอนเริ่มระบบ
       acquire: 60000,
       idle: 10000

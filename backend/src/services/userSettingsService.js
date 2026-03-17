@@ -55,6 +55,7 @@ class UserSettingsService {
         include: [
           {
             model: TradingPair,
+            as: 'TradingPair',
             attributes: ['id', 'pairCode', 'pairName', 'assetType', 'modelAvailable']
           }
         ],
@@ -293,32 +294,58 @@ class UserSettingsService {
    */
   async getActiveUsersForBroadcasting(channel = 'telegram', pairCode = null) {
     try {
-      const notifyColumn = channel === 'telegram' ? 'notify_telegram' : 'notify_line';
+      const notifyColumn = channel === 'telegram' ? 'notifyTelegram' : 'notifyLine';
+      
+      const where = {
+        isActive: true
+      };
 
-      let query = `
-        SELECT DISTINCT u.id, u.telegram_user_id, u.line_user_id, u.display_name, u.subscription_type
-        FROM users u
-        JOIN user_notification_preferences np ON u.id = np.user_id
-        WHERE u.is_active = true AND np.${notifyColumn} = true
-      `;
+      const include = [
+        {
+          model: UserNotificationPreferences,
+          as: 'UserNotificationPreference', // Sequelize uses singular by default or alias if defined
+          where: {
+            [notifyColumn]: true
+          },
+          required: true
+        }
+      ];
 
       if (pairCode) {
-        query += `
-          AND u.id IN (
-            SELECT utp.user_id FROM user_trading_pairs utp
-            JOIN trading_pairs tp ON utp.pair_id = tp.id
-            WHERE tp.pair_code = '${pairCode}' AND utp.is_selected = true
-          )
-        `;
-        
+        include.push({
+          model: UserTradingPair,
+          as: 'UserTradingPairs',
+          where: {
+            isSelected: true
+          },
+          required: true,
+          include: [
+            {
+              model: TradingPair,
+              as: 'TradingPair',
+              where: {
+                pairCode: pairCode
+              },
+              required: true
+            }
+          ]
+        });
+
         // Enforce: Free users ONLY get XAUUSD
         if (pairCode !== 'XAUUSD') {
-          query += ` AND u.subscription_type = 'subscription' `;
+          where.subscriptionType = 'subscription';
         }
       }
 
-      const users = await sequelize.query(query, { type: sequelize.QueryTypes.SELECT });
-      return users;
+      const users = await User.findAll({
+        where,
+        include,
+        attributes: ['id', 'telegramUserId', 'lineUserId', 'displayName', 'subscriptionType'],
+        // Since one user can have multiple TradingPairs if we are not careful, 
+        // we might get duplicates in a join. User.findAll handles this with sub-queries usually.
+      });
+
+      return users.map(u => u.get({ plain: true }));
     } catch (error) {
       logger.error(`Error getting active users: ${error.message}`);
       throw error;

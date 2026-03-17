@@ -123,6 +123,7 @@ const User = sequelize.define('User', {
     { fields: ['telegram_user_id'], unique: true },
     { fields: ['email'], unique: true },
     { fields: ['is_active'] },
+    { fields: ['subscription_type'] },
     { fields: ['created_at'] }
   ]
 });

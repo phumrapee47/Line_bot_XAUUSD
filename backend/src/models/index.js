@@ -11,19 +11,19 @@ const DailyAnalysis = require('./DailyAnalysis');
 // --- Associations ---
 
 // User <-> UserTradingPair <-> TradingPair
-User.hasMany(UserTradingPair, { foreignKey: 'userId', onDelete: 'CASCADE' });
-UserTradingPair.belongsTo(User, { foreignKey: 'userId' });
+User.hasMany(UserTradingPair, { foreignKey: 'userId', as: 'UserTradingPairs', onDelete: 'CASCADE' });
+UserTradingPair.belongsTo(User, { foreignKey: 'userId', as: 'User' });
 
-TradingPair.hasMany(UserTradingPair, { foreignKey: 'pairId', onDelete: 'CASCADE' });
-UserTradingPair.belongsTo(TradingPair, { foreignKey: 'pairId' });
+TradingPair.hasMany(UserTradingPair, { foreignKey: 'pairId', as: 'UserTradingPairs', onDelete: 'CASCADE' });
+UserTradingPair.belongsTo(TradingPair, { foreignKey: 'pairId', as: 'TradingPair' });
 
 // User <-> UserNotificationPreferences
-User.hasOne(UserNotificationPreferences, { foreignKey: 'userId', onDelete: 'CASCADE' });
-UserNotificationPreferences.belongsTo(User, { foreignKey: 'userId' });
+User.hasOne(UserNotificationPreferences, { foreignKey: 'userId', as: 'UserNotificationPreference', onDelete: 'CASCADE' });
+UserNotificationPreferences.belongsTo(User, { foreignKey: 'userId', as: 'User' });
 
 // User <-> UserTradingParameters
-User.hasOne(UserTradingParameters, { foreignKey: 'userId', onDelete: 'CASCADE' });
-UserTradingParameters.belongsTo(User, { foreignKey: 'userId' });
+// User.hasOne(UserTradingParameters, { foreignKey: 'userId', as: 'UserTradingParameter', onDelete: 'CASCADE' });
+// UserTradingParameters.belongsTo(User, { foreignKey: 'userId', as: 'User' });
 
 // TradingPair <-> TradingSignal
 TradingPair.hasMany(TradingSignal, { foreignKey: 'pairId', onDelete: 'CASCADE' });
