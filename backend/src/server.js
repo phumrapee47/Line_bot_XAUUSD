@@ -221,8 +221,8 @@ app.listen(config.server.port, () => {
   // --- Multi-Timeframe Scheduling System ---
   
   const schedules = [
-    { cron: '*/5 * * * *', symbols: ['XRP/USDT'], label: '5m' },
-    { cron: '*/15 * * * *', symbols: ['BTC/USDT', 'ETH/USDT', 'BNB/USDT'], label: '15m' },
+    { cron: '*/15 * * * *', symbols: ['XRP/USDT'], label: '15m' },
+    { cron: '0 */4 * * *', symbols: ['BTC/USDT', 'ETH/USDT', 'BNB/USDT'], label: '4h' },
     { cron: '0 * * * *', symbols: ['XAUUSD', 'SOL/USDT', 'DOGE/USDT'], label: '1h' }
   ];
 

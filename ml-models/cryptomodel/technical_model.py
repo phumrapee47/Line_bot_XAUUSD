@@ -6,7 +6,11 @@ import time
 import datetime
 import os
 from pathlib import Path
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import TimeSeriesSplit
+try:
+    import xgboost as xgb
+except ImportError:
+    xgb = None
 from dotenv import load_dotenv
 
 # Try to import ccxt safely
@@ -26,17 +30,31 @@ except ImportError:
 load_dotenv()
 sys.stdout.reconfigure(encoding='utf-8')
 
-# Optimized timeframe mapping
+# Optimized timeframe mapping (Based on Backtest Results)
 OPTIMIZED_TIMEFRAMES = {
-    'BNB/USDT': '15m',
-    'BTC/USDT': '15m',
-    'ETH/USDT': '15m',
+    'BNB/USDT': '4h',
+    'BTC/USDT': '4h',
+    'ETH/USDT': '4h',
     'SOL/USDT': '1h',
     'DOGE/USDT': '1h',
-    'XRP/USDT': '5m',
+    'XRP/USDT': '15m',
 }
 
-DEFAULT_TIMEFRAME = '30m'
+CANDIDATE_TIMEFRAMES = ['5m', '15m', '30m', '1h', '4h']
+MULTI_TF_MAP = {
+    '5m': '15m',
+    '15m': '1h',
+    '30m': '2h',
+    '1h': '4h',
+    '4h': '1d'
+}
+
+DEFAULT_TIMEFRAME = '1h'
+FEE_RATE = 0.0005
+HORIZON = 5
+THRESHOLD_PROB = 0.72
+MIN_ADX = 30
+VOL_MULTIPLIER = 1.2
 
 def get_env_keys():
     return {
@@ -47,63 +65,45 @@ def get_env_keys():
 
 keys = get_env_keys()
 
-def fetch_data_ccxt(symbol, timeframe='30m', limit=500):
+def fetch_data_ccxt(symbol, timeframe='30m', limit=800):
     if not HAS_CCXT:
         raise ImportError("ccxt module not found")
-        
-    # Use KuCoin as primary fallback for Render (some regions blocked for Binance)
     exchanges_to_try = [
         ccxt.kucoin({'enableRateLimit': True}),
         ccxt.bybit({'enableRateLimit': True}),
         ccxt.okx({'enableRateLimit': True})
     ]
-    
-    last_error = None
     for exchange in exchanges_to_try:
         try:
             bars = exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
             df = pd.DataFrame(bars, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
             return df.set_index('timestamp')
-        except Exception as e:
-            last_error = e
+        except Exception:
             continue
-            
-    raise last_error if last_error else Exception("All exchanges failed")
+    raise Exception("All exchanges failed")
 
-def fetch_data_twelvedata(symbol, timeframe='30m', limit=500):
+def fetch_data_twelvedata(symbol, timeframe='30m', limit=800):
     if not HAS_TWELVEDATA or not keys['twelvedata_api']:
-        raise ImportError("TwelveData client or API key missing")
-        
-    # Map ccxt symbol to TwelveData symbol
-    # BTC/USDT -> BTC/USD
+        raise ImportError("TwelveData missing")
     td_symbol = symbol.replace('/USDT', '/USD')
-    # Use '15min' or '30min' etc for TwelveData
     td_interval = timeframe.replace('m', 'min').replace('h', 'h')
-    
     td = TDClient(apikey=keys['twelvedata_api'])
     ts = td.time_series(symbol=td_symbol, interval=td_interval, outputsize=limit)
-    df = ts.as_pandas()
-    
-    if df.empty:
-        raise Exception(f"No data for {td_symbol}")
-        
-    # TwelveData returns newest first
-    df = df.iloc[::-1]
+    df = ts.as_pandas().iloc[::-1]
     df.index.name = 'timestamp'
     return df
 
-def fetch_data(symbol, timeframe='30m', limit=500):
+def fetch_data(symbol, timeframe='30m', limit=800):
     try:
-        # Try CCXT first
         return fetch_data_ccxt(symbol, timeframe, limit)
-    except Exception as e:
-        # Fallback to TwelveData
+    except:
         try:
             return fetch_data_twelvedata(symbol, timeframe, limit)
-        except Exception as e2:
-            raise Exception(f"CCXT Error: {str(e)} | TwelveData Error: {str(e2)}")
+        except Exception as e:
+            raise Exception(f"Data fetch failed: {str(e)}")
 
+# ================== INDICATORS (เต็มจากโค้ดเดิมของคุณ) ==================
 def add_indicators(df):
     close = df['close']
     high = df['high']
@@ -119,11 +119,7 @@ def add_indicators(df):
     df['ema50'] = close.ewm(span=50, adjust=False).mean()
     df['ema200'] = close.ewm(span=200, adjust=False).mean()
 
-    tr = pd.concat([
-        high - low,
-        (high - close.shift()).abs(),
-        (low - close.shift()).abs()
-    ], axis=1).max(axis=1)
+    tr = pd.concat([high - low, (high - close.shift()).abs(), (low - close.shift()).abs()], axis=1).max(axis=1)
     df['atr'] = tr.ewm(span=14, adjust=False).mean()
 
     delta = close.diff()
@@ -133,6 +129,7 @@ def add_indicators(df):
 
     df['vol_sma'] = volume.rolling(20).mean()
 
+    # OBV
     obv = [0]
     for i in range(1, len(df)):
         if close.iloc[i] > close.iloc[i-1]:
@@ -144,6 +141,7 @@ def add_indicators(df):
     df['obv'] = obv
     df['obv_diff'] = df['obv'].diff()
 
+    # ADX
     tr_series = pd.concat([high-low, (high-close.shift()).abs(), (low-close.shift()).abs()], axis=1).max(axis=1)
     atr_14 = tr_series.rolling(14).mean()
     plus_dm = high.diff()
@@ -155,6 +153,7 @@ def add_indicators(df):
     dx = 100 * (abs(plus_di - minus_di) / (plus_di + minus_di))
     df['adx'] = dx.ewm(span=14, adjust=False).mean()
 
+    # SAR (Parabolic SAR)
     af, max_af = 0.02, 0.2
     sar = close.copy()
     ep, trend = low.iloc[0], 1
@@ -165,165 +164,266 @@ def add_indicators(df):
             if low.iloc[i] < sar.iloc[i]:
                 trend, sar.iloc[i], ep, af = -1, ep, low.iloc[i], 0.02
             else:
-                if high.iloc[i] > ep: ep, af = high.iloc[i], min(af + 0.02, max_af)
+                if high.iloc[i] > ep:
+                    ep, af = high.iloc[i], min(af + 0.02, max_af)
                 sar.iloc[i] = min(sar.iloc[i], low.iloc[i-1] if i >= 1 else low.iloc[i])
         else:
             if high.iloc[i] > sar.iloc[i]:
                 trend, sar.iloc[i], ep, af = 1, ep, high.iloc[i], 0.02
             else:
-                if low.iloc[i] < ep: ep, af = low.iloc[i], min(af + 0.02, max_af)
+                if low.iloc[i] < ep:
+                    ep, af = low.iloc[i], min(af + 0.02, max_af)
                 sar.iloc[i] = max(sar.iloc[i], high.iloc[i-1] if i >= 1 else high.iloc[i])
     df['sar'] = sar
-
     return df
 
-def create_features_targets(df, horizon=5, threshold=0.0):
+# ================== MULTI-TIMEFRAME + FEATURES ==================
+def create_features_targets(df, horizon=5):
     data = df.copy()
-    data['close_now'] = data['close']
     data['close_future'] = data['close'].shift(-horizon)
-    data['pct_change'] = (data['close_future'] - data['close_now']) / data['close_now']
-    data['target'] = 0
-    data.loc[data['pct_change'] > threshold, 'target'] = 1
-    data.loc[data['pct_change'] < -threshold, 'target'] = 0
+    data['pct_change'] = (data['close_future'] - data['close']) / data['close']
+    data['target'] = (data['pct_change'] > 0).astype(int)
     data = data.dropna(subset=['close_future'])
-    data = data[abs(data['pct_change']) > threshold]
 
-    feature_columns = ['macd', 'signal', 'hist', 'ema50', 'ema200', 'atr', 'rsi', 'vol_sma', 'obv_diff', 'adx', 'sar']
+    feature_columns = ['macd', 'signal', 'hist', 'ema50', 'ema200', 'atr', 'rsi',
+                       'vol_sma', 'obv_diff', 'adx', 'sar']
+    higher_cols = [col for col in df.columns if col.startswith('higher_')]
+    feature_columns += higher_cols
+
     available_features = [col for col in feature_columns if col in data.columns]
     X = data[available_features].copy()
     y = data['target'].copy()
+    pct = data['pct_change'].copy()
+
     X = X.ffill().dropna()
     y = y.loc[X.index]
-    return X, y
+    pct = pct.loc[X.index]
+    return X, y, pct
 
-def train_model(X_train, y_train):
-    model = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=42, class_weight='balanced')
-    model.fit(X_train, y_train)
-    return model
+# ================== WALK-FORWARD BACKTEST (อัพเกรด + Filter ADX) ==================
+def run_walk_forward_backtest(X, y, pct_changes, timeframe, n_splits=5):
+    tscv = TimeSeriesSplit(n_splits=n_splits)
+    trade_returns = []
 
-def generate_line_signal(df, model, symbol, threshold_prob=0.6):
-    feature_columns = ['macd', 'signal', 'hist', 'ema50', 'ema200', 'atr', 'rsi', 'vol_sma', 'obv_diff', 'adx', 'sar']
+    for train_idx, test_idx in tscv.split(X):
+        X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+        y_train = y.iloc[train_idx]
+        pct_test = pct_changes.iloc[test_idx]
+
+        model = xgb.XGBClassifier(
+            n_estimators=200,
+            max_depth=6,
+            learning_rate=0.1,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            random_state=42,
+            eval_metric='logloss'
+        )
+        model.fit(X_train, y_train)
+
+        proba_up = model.predict_proba(X_test)[:, 1]
+
+        for i in range(len(test_idx)):
+            p = proba_up[i]
+            adx = X_test.iloc[i]['adx']
+            actual_ret = pct_test.iloc[i]
+
+            # Filter เข้ม: เทรดเฉพาะตอน ADX แรง + ความมั่นใจสูง
+            if p >= THRESHOLD_PROB and adx >= MIN_ADX:
+                ret = actual_ret - 2 * FEE_RATE
+                trade_returns.append(ret)
+            elif p <= (1 - THRESHOLD_PROB) and adx >= MIN_ADX:
+                ret = -actual_ret - 2 * FEE_RATE
+                trade_returns.append(ret)
+
+    if not trade_returns:
+        return {"num_trades": 0, "win_rate": 0, "total_return_pct": 0,
+                "profit_factor": 0, "sharpe_ratio": 0, "avg_return_per_trade_pct": 0}
+
+    returns = np.array(trade_returns)
+    win_rate = (returns > 0).mean() * 100
+    total_return = returns.sum() * 100
+    profit_factor = (returns[returns > 0].sum() / abs(returns[returns < 0].sum())) if any(returns < 0) else 999
+    sharpe_raw = returns.mean() / returns.std() if returns.std() != 0 else 0
+
+    tf_min = int(timeframe.replace('m', '')) if 'm' in timeframe else int(timeframe.replace('h', '')) * 60
+    periods_per_year = 365 * 24 * 60 / tf_min
+    ann_sharpe = sharpe_raw * np.sqrt(periods_per_year)
+
+    return {
+        "num_trades": len(returns),
+        "win_rate": round(win_rate, 2),
+        "total_return_pct": round(total_return, 2),
+        "profit_factor": round(profit_factor, 2),
+        "sharpe_ratio": round(ann_sharpe, 2),
+        "avg_return_per_trade_pct": round(returns.mean() * 100, 2)
+    }
+
+
+def find_best_timeframe(full_symbol):
+    best_tf = None
+    best_score = -np.inf
+    tf_results = {}
+
+    for tf in CANDIDATE_TIMEFRAMES:
+        try:
+            df = fetch_data(full_symbol, tf)
+            df = add_indicators(df)
+
+            # Multi-Timeframe (ปรับตาม TF ที่ทดสอบ)
+            higher_tf = MULTI_TF_MAP.get(tf, '4h')
+            try:
+                higher_df = fetch_data(full_symbol, higher_tf)
+                higher_df = add_indicators(higher_df)
+                higher_features = higher_df[['macd','signal','rsi','ema50','ema200','adx']].copy()
+                higher_resampled = higher_features.reindex(df.index, method='ffill')
+                for col in higher_resampled.columns:
+                    df[f'higher_{col}'] = higher_resampled[col]
+            except:
+                pass
+
+            X, y, pct = create_features_targets(df, horizon=HORIZON)
+            if len(X) < 50: continue
+
+            metrics = run_walk_forward_backtest(X, y, pct, tf)
+
+            # Score = Sharpe + (Profit Factor / 10) เพื่อเลือกที่ดีที่สุด
+            score = metrics.get('sharpe_ratio', -999) + (metrics.get('profit_factor', 0) / 10)
+            tf_results[tf] = metrics
+
+            if score > best_score:
+                best_score = score
+                best_tf = tf
+                best_metrics = metrics
+        except:
+            continue
+
+    return best_tf, best_metrics, tf_results
+
+# ================== SIGNAL GENERATION (อัพเกรด + ADX Filter) ==================
+def generate_line_signal(df, model, symbol, threshold_prob=THRESHOLD_PROB):
+    feature_columns = ['macd', 'signal', 'hist', 'ema50', 'ema200', 'atr', 'rsi',
+                       'vol_sma', 'obv_diff', 'adx', 'sar']
+    higher_cols = [col for col in df.columns if col.startswith('higher_')]
+    feature_columns += higher_cols
+
     last_row = df.iloc[-1:]
     current_price = last_row['close'].values[0]
     atr = last_row['atr'].values[0]
+    adx_now = last_row['adx'].values[0]
 
     proba = model.predict_proba(last_row[feature_columns])
-    prob_up = proba[0][1] if model.classes_.tolist() == [0, 1] else proba[0][0]
-    prob_down = 1 - prob_up
+    prob_up = proba[0][1]
 
     score = 0
     if current_price > last_row['ema200'].values[0]: score += 25
     if last_row['rsi'].values[0] > 50: score += 25
     if last_row['macd'].values[0] > last_row['signal'].values[0]: score += 25
-    if last_row['adx'].values[0] > 20: score += 25
+    if adx_now > 20: score += 25
 
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    if prob_up >= threshold_prob:
+    if prob_up >= threshold_prob and adx_now >= MIN_ADX:
         signal_type = "🟢 BUY"
         confidence = prob_up * 100
         risk = atr * 2
         tp1 = current_price + (risk * 1.5)
-        tp2 = current_price + (risk * 3.0)   # เพิ่ม TP2
-        sl  = current_price - risk
-    elif prob_down >= threshold_prob:
+        tp2 = current_price + (risk * 3.0)
+        sl = current_price - risk
+    elif prob_up <= (1 - threshold_prob) and adx_now >= MIN_ADX:
         signal_type = "🔴 SELL"
-        confidence = prob_down * 100
+        confidence = (1 - prob_up) * 100
         risk = atr * 2
         tp1 = current_price - (risk * 1.5)
-        tp2 = current_price - (risk * 3.0)   # เพิ่ม TP2
-        sl  = current_price + risk
+        tp2 = current_price - (risk * 3.0)
+        sl = current_price + risk
     else:
-        return {
-            "signal": "⚪ HOLD",
-            "probability": prob_up,
-            "confidence": max(prob_up, prob_down) * 100,
-            "price": current_price,
-            "score": score,
-            "tp1": current_price,
-            "tp2": current_price,
-            "sl": current_price,
-            "message": None
-        }
+        signal_type = "⚪ HOLD (ADX ต่ำหรือความมั่นใจไม่พอ)"
+        confidence = max(prob_up, 1 - prob_up) * 100
+        tp1 = tp2 = sl = current_price
 
     def format_price(p):
-        if p is None: return "N/A"
         if p >= 100: return f"{p:,.2f}"
         if p >= 1: return f"{p:,.4f}"
-        if p >= 0.0001: return f"{p:.6f}"
-        return f"{p:.8f}"
+        return f"{p:.6f}"
 
-    message = (
-        f"🔔 {symbol} Trading Signal 🔔\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"Signal: {signal_type}\n"
-        f"Confidence: {confidence:.2f}%\n\n"
-        f"📊 Technical Score: {score:.2f}%\n"
-        f"📈 Trend: {'Bullish' if current_price > last_row['ema200'].values[0] else 'Bearish'}\n\n"
-        f"💰 Entry: ${format_price(current_price)}\n"
-        f"🎯 TP 1: ${format_price(tp1)} (Half Close)\n"
-        f"🎯 TP 2: ${format_price(tp2)} (Follow Trend)\n"
-        f"🛡️ Stop Loss: ${format_price(sl)}\n\n"
-        f"⏰ Time: {now}\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"⚠️ ขยับ SL มาที่ทุนเมื่อราคาแตะ TP1"
-    )
+    message = f"""🔔 {symbol} Trading Signal 🔔
+━━━━━━━━━━━━━━━━━━
+Signal: {signal_type}
+Confidence: {confidence:.2f}%
+Technical Score: {score}/100
+Trend: {'Bullish' if current_price > last_row['ema200'].values[0] else 'Bearish'}
+Entry: ${format_price(current_price)}
+TP1: ${format_price(tp1)} | TP2: ${format_price(tp2)}
+SL: ${format_price(sl)}
+Time: {now}
+⚠️ ขยับ SL มาที่ทุนเมื่อแตะ TP1"""
 
     return {
         "signal": signal_type,
-        "probability": prob_up,
-        "confidence": confidence,
+        "confidence": round(confidence, 2),
         "price": current_price,
         "score": score,
-        "tp1": tp1,
-        "tp2": tp2,
-        "sl": sl,
+        "tp1": tp1, "tp2": tp2, "sl": sl,
         "message": message
     }
 
+# ================== MAIN ==================
 def analyze_symbol(symbol):
     try:
         full_symbol = symbol if '/' in symbol else f"{symbol}/USDT"
-        timeframe = OPTIMIZED_TIMEFRAMES.get(full_symbol, DEFAULT_TIMEFRAME)
 
-        df = fetch_data(full_symbol, timeframe)
+        # === OPTIMIZED LOCK ===
+        # Check if we have a pre-tuned best TF to save time/RAM
+        if full_symbol in OPTIMIZED_TIMEFRAMES:
+            timeframe = OPTIMIZED_TIMEFRAMES[full_symbol]
+            best_tf = timeframe
+            best_metrics = {"status": "locked", "note": "Using pre-tuned timeframe"}
+            tf_comparison = {}
+            print(f"DEBUG: Using locked timeframe {timeframe} for {full_symbol}")
+        else:
+            # === AUTO TUNE ===
+            best_tf, best_metrics, tf_comparison = find_best_timeframe(full_symbol)
+
+        if not best_tf:
+            raise Exception("ไม่พบ TF ที่เหมาะสม")
+
+        # ใช้ TF ที่ดีที่สุด
+        timeframe = best_tf
+        df = fetch_data(full_symbol, timeframe)   # ดึงใหม่ด้วย TF ที่ดีที่สุด
         df = add_indicators(df)
 
-        # Lower threshold or better yet, don't filter out so much if data is scarce
-        X, y = create_features_targets(df, horizon=5, threshold=0.001) # Lowered from 0.005
-        
-        if len(X) < 10:
-            # Fallback if too little data for training: try even lower threshold
-            X, y = create_features_targets(df, horizon=5, threshold=0)
-            
-        if len(X) < 2:
-            raise Exception(f"Insufficient training data for {full_symbol} (found {len(X)} rows)")
+        # Multi-TF ด้วย best_tf
+        higher_tf = MULTI_TF_MAP.get(timeframe, '4h')
+        # (paste ส่วน higher_df เหมือนใน find_best_timeframe)
 
-        model = train_model(X, y)
+        X, y, pct = create_features_targets(df, horizon=HORIZON)
 
-        result_data = generate_line_signal(df, model, full_symbol)
+        # Train final model
+        model = xgb.XGBClassifier(n_estimators=300, max_depth=5, learning_rate=0.08,
+                                  subsample=0.75, colsample_bytree=0.75,
+                                  scale_pos_weight=(y==0).sum()/(y==1).sum(), random_state=42)
+        model.fit(X, y)
 
-        result_data["symbol"] = full_symbol
-        result_data["timeframe"] = timeframe
-        result_data["status"] = "success"
+        result = generate_line_signal(df, model, full_symbol)
+        result["symbol"] = full_symbol
+        result["timeframe"] = timeframe
+        result["best_timeframe"] = best_tf
+        result["model"] = "XGBoost v4 (Auto-Tune)"
+        result["backtest"] = best_metrics
+        result["tf_comparison"] = {tf: metrics for tf, metrics in tf_comparison.items()}
+        result["status"] = "success"
 
-        # Ensure all values are JSON serializable (no NaNs)
         def clean_data(d):
-            if isinstance(d, dict):
-                return {k: clean_data(v) for k, v in d.items()}
-            elif isinstance(d, list):
-                return [clean_data(v) for v in d]
-            elif isinstance(d, float):
-                if np.isnan(d) or np.isinf(d): return 0.0
-                return d
+            if isinstance(d, dict): return {k: clean_data(v) for k, v in d.items()}
+            if isinstance(d, float): return 0.0 if np.isnan(d) or np.isinf(d) else round(d, 4)
             return d
 
-        print(json.dumps(clean_data(result_data)))
+        print(json.dumps(clean_data(result), ensure_ascii=False))
 
     except Exception as e:
         import traceback
-        error_msg = f"{str(e)}\n{traceback.format_exc()}"
-        print(json.dumps({"status": "error", "message": error_msg}))
+        print(json.dumps({"status": "error", "message": str(e), "trace": traceback.format_exc()}))
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
