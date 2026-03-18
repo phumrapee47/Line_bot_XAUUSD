@@ -8,7 +8,6 @@ News Sentiment Analysis Model
 import feedparser
 import json
 import sys
-from transformers import pipeline
 import numpy as np
 
 NEWS_RSS_URL = "https://www.fxstreet.com/rss/news"
