@@ -15,7 +15,7 @@ xgboost>=2.0.0
 
 # Visualization
 matplotlib>=3.8.0
-mplfinance>=0.12.9b0
+mplfinance==0.12.10b0
 pillow==10.1.0
 lightgbm>=4.0.0
 

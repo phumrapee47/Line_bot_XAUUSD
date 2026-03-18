@@ -39,7 +39,10 @@ async function initDatabase() {
       
       return true;
     } catch (error) {
-      logger.error(`❌ Database startup attempt ${attempt} failed: ${error.message}`);
+      logger.error(`❌ Database startup attempt ${attempt} failed: ${error.message || String(error)}`);
+      if (error.errors) {
+        error.errors.forEach(e => logger.error(`  - ${e.message}`));
+      }
       
       if (attempt < MAX_RETRIES) {
         const delay = INITIAL_DELAY * attempt;
