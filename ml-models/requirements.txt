@@ -2,22 +2,18 @@
 numpy>=1.26.0
 pandas>=2.1.1
 scikit-learn>=1.3.0
-tensorflow>=2.15.0
-keras>=2.15.0
 
 # Data fetching & processing
-yfinance==0.2.32
-pandas-ta>=0.3.14b0
 feedparser==6.0.10
 requests==2.31.0
 twelvedata>=1.2.0
 ccxt==4.4.1
 
 # ML & NLP
-torch>=2.2.0
 joblib==1.3.2
 xgboost>=2.0.0
 
+# Visualization
 matplotlib>=3.8.0
 mplfinance==0.12.9
 pillow==10.1.0
@@ -29,6 +25,3 @@ python-dotenv==1.0.0
 
 # Scheduling
 APScheduler==3.10.4
-
-# Others
-python-dotenv==1.0.0
