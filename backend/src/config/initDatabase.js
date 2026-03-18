@@ -40,6 +40,9 @@ async function initDatabase() {
       return true;
     } catch (error) {
       logger.error(`❌ Database startup attempt ${attempt} failed: ${error.message || String(error)}`);
+      if (error.parent) {
+        logger.error(`  Root cause: ${error.parent.message} (code: ${error.parent.code})`);
+      }
       if (error.errors) {
         error.errors.forEach(e => logger.error(`  - ${e.message}`));
       }
