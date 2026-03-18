@@ -148,8 +148,9 @@ class TradingSignalService {
       const lineUsers = await userSettingsService.getActiveUsersForBroadcasting('line', pairCode);
       const telegramUsers = await userSettingsService.getActiveUsersForBroadcasting('telegram', pairCode);
       
-      const lineUserIds = lineUsers.map(u => u.line_user_id).filter(id => !!id);
-      const telegramUserIds = telegramUsers.map(u => u.telegram_user_id).filter(id => !!id);
+      const lineUserIds = lineUsers.map(u => u.lineUserId || u.line_user_id).filter(id => !!id);
+      const telegramUserIds = telegramUsers.map(u => u.telegramUserId || u.telegram_user_id).filter(id => !!id);
+
 
       logger.info(`Targeting ${lineUserIds.length} LINE users and ${telegramUserIds.length} Telegram users for ${pairCode}`);
 
