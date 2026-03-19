@@ -79,8 +79,8 @@ class TradingSignalService {
         );
       } else {
         // For Crypto, ignore news entirely
-        combinedScore = technicalData.probability;
-        logger.info(`Combined score for ${pairCode}: ${combinedScore.toFixed(4)} (Technical Only)`);
+        combinedScore = typeof technicalData.probability === 'number' ? technicalData.probability : 0.5;
+        logger.info(`Combined score for ${pairCode}: ${combinedScore.toFixed(4)} (Technical Only - default fallback)`);
       }
 
       let signal = this.determineSignal(combinedScore);
