@@ -42,7 +42,9 @@ router.post('/upload', async (req, res) => {
         // Upload prediction image to Supabase
         let predictionUrl = null;
         if (predictionImage && fs.existsSync(predictionImage)) {
-          const destPath = `predictions/${pairCode}_${new Date(timestamp).toISOString().slice(0, 10)}.png`;
+          // Use string slicing to preserve local date. Format is YYYY-MM-DD
+          const localDatePrefix = timestamp ? timestamp.substring(0, 10) : new Date().toISOString().substring(0, 10);
+          const destPath = `predictions/${pairCode}_${localDatePrefix}.png`;
           predictionUrl = await supabaseService.uploadFile(predictionImage, destPath);
           logger.info(`Uploaded prediction image for ${pairCode}: ${predictionUrl}`);
         }
@@ -50,7 +52,8 @@ router.post('/upload', async (req, res) => {
         // Upload graph image to Supabase
         let graphUrl = null;
         if (graphImage && fs.existsSync(graphImage)) {
-          const destPath = `graphs/${pairCode}_graph_${new Date(timestamp).toISOString().slice(0, 10)}.png`;
+          const localDatePrefix = timestamp ? timestamp.substring(0, 10) : new Date().toISOString().substring(0, 10);
+          const destPath = `graphs/${pairCode}_graph_${localDatePrefix}.png`;
           graphUrl = await supabaseService.uploadFile(graphImage, destPath);
           logger.info(`Uploaded graph image for ${pairCode}: ${graphUrl}`);
         }
@@ -59,7 +62,7 @@ router.post('/upload', async (req, res) => {
         const pair = await TradingPair.findOne({ where: { pairCode: pairCode } });
 
         // Upsert daily analysis record
-        const analysisDate = new Date(timestamp).toISOString().slice(0, 10);
+        const analysisDate = timestamp ? timestamp.substring(0, 10) : new Date().toISOString().substring(0, 10);
         const [record, created] = await DailyAnalysis.findOrCreate({
           where: { pairCode, analysisDate },
           defaults: {
@@ -72,11 +75,14 @@ router.post('/upload', async (req, res) => {
         });
 
         if (!created) {
-          await record.update({
-            analysis,
-            predictionImageUrl: predictionUrl,
-            graphImageUrl: graphUrl
-          });
+          const updates = {};
+          if (analysis) updates.analysis = analysis;
+          if (predictionUrl) updates.predictionImageUrl = predictionUrl;
+          if (graphUrl) updates.graphImageUrl = graphUrl;
+          
+          if (Object.keys(updates).length > 0) {
+            await record.update(updates);
+          }
         }
 
         processed.push({ pairCode, predictionUrl, graphUrl, created });
