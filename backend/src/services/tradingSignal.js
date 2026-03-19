@@ -161,18 +161,39 @@ class TradingSignalService {
       // Save signal to history
       try {
         const { TradingPair, TradingSignal } = require('../models');
-        const pair = await TradingPair.findOne({ where: { pairCode: pairCode } });
-        if (pair) {
-          await TradingSignal.create({
-            pairId: pair.id,
-            signal: currentSignal,
-            confidence: signalData.confidence,
-            price: signalData.price,
-            tp: signalData.tp,
-            sl: signalData.sl
-          });
-          logger.info(`Signal saved to history for ${pairCode}`);
+        
+        // Find exact match or fallback to removing slash (e.g. BTC/USDT -> BTCUSDT)
+        let pair = await TradingPair.findOne({ where: { pairCode: pairCode } });
+        if (!pair && pairCode.includes('/')) {
+          pair = await TradingPair.findOne({ where: { pairCode: pairCode.replace('/', '') } });
         }
+
+        // Auto-create missing pair to ensure signals are always saved
+        if (!pair) {
+          const isCrypto = pairCode.includes('/');
+          const rawSymbol = pairCode.split('/')[0];
+          
+          pair = await TradingPair.create({
+            pairCode: pairCode,
+            pairName: pairCode.replace('/', ' / '),
+            pairSymbol: rawSymbol.substring(0, 3).toLowerCase(),
+            assetType: isCrypto ? 'crypto' : 'commodity',
+            isActive: true,
+            modelAvailable: true
+          });
+          logger.info(`Auto-created missing TradingPair for ${pairCode}`);
+        }
+
+        await TradingSignal.create({
+          pairId: pair.id,
+          signal: currentSignal,
+          confidence: signalData.confidence,
+          price: signalData.price,
+          tp: signalData.tp,
+          sl: signalData.sl
+        });
+        logger.info(`Signal saved to history for ${pairCode}`);
+        
       } catch (dbError) {
         logger.error(`Error saving signal to DB: ${dbError.message}`);
       }

@@ -218,8 +218,27 @@ app.listen(config.server.port, () => {
   lineNotifier.sendMessage(startupMsg).catch(e => logger.error(`Error sending LINE startup message: ${e.message}`));
   telegramNotifier.sendMessage(startupMsg).catch(e => logger.error(`Error sending Telegram startup message: ${e.message}`));
 
-  // --- Multi-Timeframe Scheduling System ---
-  
+  // --- Async Queue for Signal Processing ---
+  // FIX: Enqueue ML jobs to avoid Out-Of-Memory (OOM) crashes by running them sequentially
+  const signalProcessingQueue = [];
+  let isProcessingSignals = false;
+
+  const processNextSignal = async () => {
+    if (isProcessingSignals) return;
+    isProcessingSignals = true;
+    
+    while (signalProcessingQueue.length > 0) {
+      const symbol = signalProcessingQueue.shift();
+      try {
+        await tradingSignal.processSignal(symbol);
+      } catch (e) {
+        logger.error(`Error in scheduled check for ${symbol}: ${e.message}`);
+      }
+    }
+    
+    isProcessingSignals = false;
+  };
+
   const schedules = [
     { cron: '*/15 * * * *', symbols: ['XRP/USDT', 'BNB/USDT'], label: '15m' },
     { cron: '0 * * * *',   symbols: ['BTC/USDT', 'XAUUSD'],   label: '1h'  },
@@ -228,16 +247,18 @@ app.listen(config.server.port, () => {
 
   schedules.forEach(group => {
     cron.schedule(group.cron, async () => {
-      logger.info(`⏰ [${group.label}] Scheduled check triggered for: ${group.symbols.join(', ')}`);
+      logger.info(`⏰ [${group.label}] Scheduled check triggered. Adding to queue: ${group.symbols.join(', ')}`);
       for (const symbol of group.symbols) {
-        await tradingSignal.processSignal(symbol).catch(e => 
-          logger.error(`Error in scheduled check for ${symbol}: ${e.message}`)
-        );
+        // Only queue it if it's not already in the queue
+        if (!signalProcessingQueue.includes(symbol)) {
+          signalProcessingQueue.push(symbol);
+        }
       }
+      processNextSignal();
     });
   });
 
-  logger.info(`✅ Multi-timeframe scheduler initialized for ${schedules.length} frequency groups`);
+  logger.info(`✅ Multi-timeframe scheduler initialized for ${schedules.length} frequency groups (QUEUED)`);
 
   // --- Daily Analysis Pipeline Logic ---
   const runDailyPipeline = async () => {
@@ -251,7 +272,12 @@ app.listen(config.server.port, () => {
       
       // 1. Run the pipeline (this might take several minutes)
       logger.info('Step 1: Running python daily_trading_pipeline.py...');
-      const { stdout, stderr } = await execPromise('python daily_trading_pipeline.py', { cwd: mlDir, timeout: 1800000 }); // Increase to 30 mins
+      // FIX: Increase maxBuffer to 50MB to prevent Node from dropping the process if python logs are too verbose
+      const { stdout, stderr } = await execPromise('python daily_trading_pipeline.py', { 
+        cwd: mlDir, 
+        timeout: 1800000, 
+        maxBuffer: 1024 * 1024 * 50 
+      }); 
       if (stdout) {
         const lastLines = stdout.split('\n').filter(l => l.trim()).slice(-5).join(' | ');
         logger.info(`ML pipeline stdout (last bits): ${lastLines}...`);
@@ -281,14 +307,15 @@ app.listen(config.server.port, () => {
     res.json({ success: true, message: 'Daily pipeline triggered and is running in the background.' });
   });
 
-  // Run every day at 02:00 AM Bangkok time (if server is awake)
-  cron.schedule('0 2 * * *', async () => {
-    logger.info('⏰ [Bangkok 02:00 AM] Scheduled check: Starting Daily Analysis ML Pipeline...');
+  // Run every day at 02:05 AM Bangkok time (if server is awake)
+  // FIX: Staggered from 02:00 to 02:05 to avoid simultaneous execution with the top-of-the-hour 1h/4h jobs
+  cron.schedule('5 2 * * *', async () => {
+    logger.info('⏰ [Bangkok 02:05 AM] Scheduled check: Starting Daily Analysis ML Pipeline...');
     await runDailyPipeline();
   }, {
     timezone: "Asia/Bangkok"
   });
-  logger.info('✅ Daily pipeline scheduler initialized (02:00 AM, Asia/Bangkok)');
+  logger.info('✅ Daily pipeline scheduler initialized (02:05 AM, Asia/Bangkok)');
 });
 
 
