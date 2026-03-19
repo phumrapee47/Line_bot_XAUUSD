@@ -68,7 +68,8 @@ class TechnicalAnalysisService {
       // Log with more indicators if available
       const adxInfo = result.adx ? `, adx=${result.adx}` : '';
       const rsiInfo = result.rsi ? `, rsi=${result.rsi}` : '';
-      logger.info(`Technical analysis completed for ${pairCode}: prob=${validatedPrice.probability.toFixed(4)}, price=${validatedPrice.price}${adxInfo}${rsiInfo}`);
+      const probFormatted = typeof validatedPrice.probability === 'number' ? validatedPrice.probability.toFixed(4) : 'N/A';
+      logger.info(`Technical analysis completed for ${pairCode}: prob=${probFormatted}, price=${validatedPrice.price}${adxInfo}${rsiInfo}`);
 
       return {
         pairCode: pairCode,
