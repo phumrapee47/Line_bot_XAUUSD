@@ -143,19 +143,19 @@ class PriceValidationService {
       result.errors.push(`Invalid price: $${price}`);
     }
 
-    // Validate TP and SL are reasonable
-    if (typeof tp !== 'number') {
+    // Validate TP and SL are reasonable (allow null for HOLD signals)
+    if (tp !== null && tp !== undefined && typeof tp !== 'number') {
       result.errors.push(`Invalid TP: ${tp}`);
       result.isValid = false;
     }
 
-    if (typeof sl !== 'number') {
+    if (sl !== null && sl !== undefined && typeof sl !== 'number') {
       result.errors.push(`Invalid SL: ${sl}`);
       result.isValid = false;
     }
 
-    // Validate probability
-    if (typeof probability !== 'number' || probability < 0 || probability > 1) {
+    // Validate probability (allow null/undefined for crypto)
+    if (probability !== null && probability !== undefined && (typeof probability !== 'number' || probability < 0 || probability > 1)) {
       result.errors.push(`Invalid probability: ${probability}`);
       result.isValid = false;
     }
