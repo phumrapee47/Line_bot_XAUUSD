@@ -290,66 +290,92 @@ class UserSettingsService {
   }
 
   /**
+   * Helper to retry DB operations on timeout
+   */
+  async withRetry(operation, maxRetries = 3, delay = 2000) {
+    let lastError;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await operation();
+      } catch (error) {
+        lastError = error;
+        // Only retry on timeout or connection errors
+        const isTimeout = error.message?.includes('timeout') || error.name?.includes('Timeout');
+        if (isTimeout && i < maxRetries - 1) {
+          logger.warn(`⚠️ DB Operation Timeout (Attempt ${i + 1}/${maxRetries}). Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw lastError;
+  }
+
+  /**
    * Get all active users for broadcasting (by channel)
    */
   async getActiveUsersForBroadcasting(channel = 'telegram', pairCode = null) {
-    try {
-      const notifyColumn = channel === 'telegram' ? 'notifyTelegram' : 'notifyLine';
-      
-      const where = {
-        isActive: true
-      };
+    return this.withRetry(async () => {
+      try {
+        const notifyColumn = channel === 'telegram' ? 'notifyTelegram' : 'notifyLine';
+        
+        const where = {
+          isActive: true
+        };
 
-      const include = [
-        {
-          model: UserNotificationPreferences,
-          as: 'UserNotificationPreference', // Sequelize uses singular by default or alias if defined
-          where: {
-            [notifyColumn]: true
-          },
-          required: true
+        const include = [
+          {
+            model: UserNotificationPreferences,
+            as: 'UserNotificationPreference',
+            where: {
+              [notifyColumn]: true
+            },
+            required: true
+          }
+        ];
+
+        if (pairCode) {
+          include.push({
+            model: UserTradingPair,
+            as: 'UserTradingPairs',
+            where: {
+              isSelected: true
+            },
+            required: true,
+            include: [
+              {
+                model: TradingPair,
+                as: 'TradingPair',
+                where: {
+                  pairCode: pairCode
+                },
+                required: true
+              }
+            ]
+          });
+
+          // Enforce: Free users ONLY get XAUUSD
+          if (pairCode !== 'XAUUSD') {
+            where.subscriptionType = 'subscription';
+          }
         }
-      ];
 
-      if (pairCode) {
-        include.push({
-          model: UserTradingPair,
-          as: 'UserTradingPairs',
-          where: {
-            isSelected: true
-          },
-          required: true,
-          include: [
-            {
-              model: TradingPair,
-              as: 'TradingPair',
-              where: {
-                pairCode: pairCode
-              },
-              required: true
-            }
-          ]
+        const users = await User.findAll({
+          where,
+          include,
+          attributes: ['id', 'telegramUserId', 'lineUserId', 'displayName', 'subscriptionType'],
+          // Increase per-query timeout slightly for this specific slow join
+          timeout: 45000 
         });
 
-        // Enforce: Free users ONLY get XAUUSD
-        if (pairCode !== 'XAUUSD') {
-          where.subscriptionType = 'subscription';
-        }
+        return users.map(u => u.get({ plain: true }));
+      } catch (error) {
+        logger.error(`Error in getActiveUsersForBroadcasting: ${error.message}`);
+        throw error;
       }
-
-      const users = await User.findAll({
-        where,
-        include,
-        attributes: ['id', 'telegramUserId', 'lineUserId', 'displayName', 'subscriptionType'],
-        // Since one user can have multiple TradingPairs if we are not careful, 
-        // we might get duplicates in a join. User.findAll handles this with sub-queries usually.
-      });
-
-      return users.map(u => u.get({ plain: true }));
-    } catch (error) {
-      logger.error(`Error getting active users: ${error.message}`);
-      throw error;
-    }
+    });
   }
 
   /**

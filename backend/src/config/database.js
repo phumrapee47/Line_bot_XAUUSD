@@ -20,7 +20,7 @@ if (process.env.DATABASE_URL) {
     },
     logging: msg => logger.debug(msg), // Keep only debug logging here
     pool: {
-      max: 10, // Slightly increase max connections
+      max: 5, // Reduced from 10 to save RAM and avoid pool contention on free tier
       min: 1,
       acquire: 90000, // Increase to 90s
       idle: 10000,

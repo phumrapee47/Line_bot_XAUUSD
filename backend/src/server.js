@@ -231,6 +231,12 @@ app.listen(config.server.port, () => {
       const symbol = signalProcessingQueue.shift();
       try {
         await tradingSignal.processSignal(symbol);
+        
+        // Add a 3-second "cool-down" delay between symbols to let CPU/RAM settle
+        if (signalProcessingQueue.length > 0) {
+          logger.info(`Cooling down for 3s before next symbol...`);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
       } catch (e) {
         logger.error(`Error in scheduled check for ${symbol}: ${e.message}`);
       }
