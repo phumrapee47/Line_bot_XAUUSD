@@ -66,8 +66,12 @@ class TechnicalAnalysisService {
       const validatedPrice = priceValidation.getPriceWithFallback(pairCode, priceData);
 
       // Log with more indicators if available
-      const adxInfo = result.adx ? `, adx=${result.adx}` : '';
-      const rsiInfo = result.rsi ? `, rsi=${result.rsi}` : '';
+      const indicators1H = result.indicators?.["1H"] || {};
+      const adx = result.adx || indicators1H.adx;
+      const rsi = result.rsi || indicators1H.rsi;
+      
+      const adxInfo = adx ? `, adx=${adx}` : '';
+      const rsiInfo = rsi ? `, rsi=${rsi}` : '';
       const probFormatted = typeof validatedPrice.probability === 'number' ? validatedPrice.probability.toFixed(4) : 'N/A';
       logger.info(`Technical analysis completed for ${pairCode}: prob=${probFormatted}, price=${validatedPrice.price}${adxInfo}${rsiInfo}`);
 
@@ -85,9 +89,9 @@ class TechnicalAnalysisService {
         signal: result.signal || null,
         confidence: result.confidence || null,
         score: result.score || null,
-        adx: result.adx || null,
-        rsi: result.rsi || null,
-        message: result.message || null
+        adx: adx || null,
+        rsi: rsi || null,
+        message: result.message || (result.notes ? result.notes.join('\n') : null)
       };
     } catch (error) {
       logger.error(`❌ Technical analysis for ${pairCode} failed: ${error.message}`);
