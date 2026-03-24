@@ -159,17 +159,23 @@ class LineNotifier {
       const newsLine = isXAUUSD
         ? `📰 News Score: ${signalData.newsScore ? (signalData.newsScore * 100).toFixed(2) : '0.00'}%\n`
         : '';
+
+      const notesLine = (signalData.notes && signalData.notes.length > 0)
+        ? `\n📌 Notes:\n${signalData.notes.join('\n')}\n`
+        : '';
+
       return (
 `🔔 ${pairName} Trading Signal 🔔\n` +
 `━━━━━━━━━━━━━━━━━━\n` +
 `Signal: ${signalData.signal}\n` +
-`Confidence: ${conf}%\n\n` +
-`📊 Technical Score: ${techScore}%\n` +
+`Conf: ${conf}%\n\n` +
+`📊 Tech Score: ${techScore}%\n` +
 newsLine +
 `\n💰 Entry: ${price}\n` +
-`🎯 Take Profit: ${tp}\n` +
-`🛡️ Stop Loss: ${sl}\n\n` +
-`⏰ Time: ${signalData.timestamp}\n` +
+`🎯 TP: ${tp}\n` +
+`🛡️ SL: ${sl}\n` +
+notesLine +
+`\n⏰ Time: ${new Date(signalData.timestamp).toLocaleString('th-TH')}\n` +
 `━━━━━━━━━━━━━━━━━━`
       );
     })();

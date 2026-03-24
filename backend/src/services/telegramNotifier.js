@@ -176,6 +176,11 @@ class TelegramNotifier {
       const newsLine = isXAUUSD
         ? `📰 News Score: ${signalData.newsScore ? (signalData.newsScore * 100).toFixed(2) : '0.00'}%\n`
         : '';
+        
+      const notesLine = (signalData.notes && signalData.notes.length > 0)
+        ? `\n📌 Notes:\n${signalData.notes.join('\n')}\n`
+        : '';
+
       message = (
 `🔔 <b>${pairName} Trading Signal</b> 🔔\n` +
 `━━━━━━━━━━━━━━━━━━\n` +
@@ -185,8 +190,9 @@ class TelegramNotifier {
 newsLine +
 `\n💰 Entry: ${price}\n` +
 `🎯 Take Profit: ${tp}\n` +
-`🛡️ Stop Loss: ${sl}\n\n` +
-`⏰ Time: ${new Date(signalData.timestamp).toLocaleString('th-TH')}\n` +
+`🛡️ Stop Loss: ${sl}\n` +
+notesLine +
+`\n⏰ Time: ${new Date(signalData.timestamp).toLocaleString('th-TH')}\n` +
 `━━━━━━━━━━━━━━━━━━`
       );
     }

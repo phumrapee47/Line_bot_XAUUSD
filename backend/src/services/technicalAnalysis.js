@@ -91,7 +91,8 @@ class TechnicalAnalysisService {
         score: result.score || null,
         adx: adx || null,
         rsi: rsi || null,
-        message: result.message || (result.notes ? result.notes.join('\n') : null)
+        notes: result.notes || [],
+        message: result.message || null
       };
     } catch (error) {
       logger.error(`❌ Technical analysis for ${pairCode} failed: ${error.message}`);

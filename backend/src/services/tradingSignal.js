@@ -86,14 +86,16 @@ class TradingSignalService {
       let signal = this.determineSignal(combinedScore);
       let confidence = combinedScore;
 
-      // For non-XAUUSD, try to use values directly from technical analysis if they are high-confidence
-      if (!isXAUUSD && technicalData.signal) {
-        const normalized = this.normalizeSignal(technicalData.signal);
-        if (normalized !== '⚪ HOLD') {
-          signal = normalized;
-          confidence = technicalData.confidence / 100;
-        } else {
+      // Respect the signal from Python script (it has already done component-level filtering)
+      if (technicalData.signal) {
+        const pySignal = this.normalizeSignal(technicalData.signal);
+        if (pySignal === '⚪ HOLD') {
+          // If Python blocked it (e.g., 5-layer shield), we must respect it
           signal = '⚪ HOLD';
+        } else if (!isXAUUSD) {
+          // For crypto, always use Python signal completely
+          signal = pySignal;
+          confidence = technicalData.confidence / 100;
         }
       }
 
@@ -109,6 +111,7 @@ class TradingSignalService {
         sl: technicalData.sl,
         source: technicalData.source || 'live',
         timestamp: new Date().toLocaleString('th-TH'),
+        notes: technicalData.notes || [], // Pass notes for warning formatting
         message: technicalData.message // Pass through custom message from Python if available
       };
 
