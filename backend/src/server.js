@@ -313,15 +313,15 @@ app.listen(config.server.port, () => {
     res.json({ success: true, message: 'Daily pipeline triggered and is running in the background.' });
   });
 
-  // Run every day at 02:05 AM Bangkok time (if server is awake)
-  // FIX: Staggered from 02:00 to 02:05 to avoid simultaneous execution with the top-of-the-hour 1h/4h jobs
-  cron.schedule('5 2 * * *', async () => {
-    logger.info('⏰ [Bangkok 02:05 AM] Scheduled check: Starting Daily Analysis ML Pipeline...');
+  // Run every day at 08:05 AM Bangkok time (if server is awake)
+  // FIX: Staggered from 08:00 to 08:05 to avoid simultaneous execution with the top-of-the-hour 1h/4h jobs and to ensure 1D candle data from TwelveData/Binance is fully populated.
+  cron.schedule('5 8 * * *', async () => {
+    logger.info('⏰ [Bangkok 08:05 AM] Scheduled check: Starting Daily Analysis ML Pipeline...');
     await runDailyPipeline();
   }, {
     timezone: "Asia/Bangkok"
   });
-  logger.info('✅ Daily pipeline scheduler initialized (02:05 AM, Asia/Bangkok)');
+  logger.info('✅ Daily pipeline scheduler initialized (08:05 AM, Asia/Bangkok)');
 });
 
 
